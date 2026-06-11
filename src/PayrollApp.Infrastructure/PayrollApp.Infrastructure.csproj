@@ -6,4 +6,17 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <PackageReference Include="Marten" Version="9.7.2" />
+    <PackageReference Include="Marten.AspNetCore" Version="9.7.2" />
+    <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PayrollApp.Domain\PayrollApp.Domain.csproj" />
+    <ProjectReference Include="..\PayrollApp.Engine\PayrollApp.Engine.csproj" />
+  </ItemGroup>
+
 </Project>

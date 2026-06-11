@@ -15,6 +15,7 @@ public class PayrollRun
     public PayrollStatus Status { get; private set; }
     public Money TotalAmount { get; private set; } = Money.Zero;
     public int TotalEmployees { get; private set; }
+    public List<PayrollLineItem> LineItems { get; private set; } = new();
     public string? CreatedBy { get; private set; }
     public string? ApprovedBy { get; private set; }
     public string? LockedBy { get; private set; }
@@ -62,16 +63,19 @@ public class PayrollRun
         Status = PayrollStatus.Calculating;
     }
 
-    public void MarkCalculated(Money totalAmount, int totalEmployees)
+    public void MarkCalculated(List<PayrollLineItem> lineItems, decimal totalAmount)
     {
         if (Status != PayrollStatus.Calculating)
             throw new InvalidPayrollStateException(
                 $"Cannot mark as calculated. Payroll must be in Calculating status, current status: {Status}");
 
+        if (lineItems == null || lineItems.Count == 0)
+            throw new ArgumentException("LineItems cannot be empty", nameof(lineItems));
+
         var @event = new PayrollCalculated(
             Id,
+            lineItems,
             totalAmount,
-            totalEmployees,
             DateTime.UtcNow
         );
 
@@ -155,6 +159,28 @@ public class PayrollRun
         RaiseEvent(@event);
     }
 
+    public void GeneratePayslip(string employeeId, string pdfPath)
+    {
+        if (Status != PayrollStatus.Locked)
+            throw new InvalidPayrollStateException(
+                $"Cannot generate payslip. Payroll must be in Locked status, current status: {Status}");
+
+        if (string.IsNullOrWhiteSpace(employeeId))
+            throw new ArgumentException("EmployeeId cannot be empty", nameof(employeeId));
+
+        if (string.IsNullOrWhiteSpace(pdfPath))
+            throw new ArgumentException("PdfPath cannot be empty", nameof(pdfPath));
+
+        var @event = new PayslipGenerated(
+            Id,
+            employeeId,
+            pdfPath,
+            DateTime.UtcNow
+        );
+
+        RaiseEvent(@event);
+    }
+
     public void InitiateDisbursement(string bankFileUrl, string bankName)
     {
         if (Status != PayrollStatus.Locked)
@@ -220,8 +246,9 @@ public class PayrollRun
 
             case PayrollCalculated e:
                 Status = PayrollStatus.Calculated;
-                TotalAmount = e.TotalAmount;
-                TotalEmployees = e.TotalEmployees;
+                LineItems = e.LineItems;
+                TotalAmount = Money.FromDecimal(e.TotalAmount);
+                TotalEmployees = e.LineItems.Count;
                 break;
 
             case PayrollReviewStarted e:
