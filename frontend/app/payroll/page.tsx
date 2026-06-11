@@ -15,7 +15,7 @@ interface PayrollRun {
   year: number;
   status: string;
   totalAmount: number;
-  employeeCount: number;
+  totalEmployees: number;  // Backend uses totalEmployees, not employeeCount
   createdAt: string;
   createdBy: string;
 }
@@ -95,8 +95,8 @@ export default function PayrollPage() {
     );
   }
 
-  const totalAmount = payrollRuns.reduce((sum, run) => sum + run.totalAmount, 0);
-  const totalEmployees = payrollRuns.reduce((sum, run) => sum + run.employeeCount, 0);
+  const totalAmount = payrollRuns.reduce((sum, run) => sum + (run.totalAmount || 0), 0);
+  const totalEmployees = payrollRuns.reduce((sum, run) => sum + (run.totalEmployees || 0), 0);
   const activeRuns = payrollRuns.filter(r => ['Calculating', 'UnderReview', 'Approved'].includes(r.status)).length;
 
   return (
@@ -237,7 +237,7 @@ export default function PayrollPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    <span>{run.employeeCount} employees</span>
+                    <span>{run.totalEmployees} employees</span>
                     <span className="text-[#94A3B8]">•</span>
                     <span>Created by {run.createdBy}</span>
                     <span className="text-[#94A3B8]">•</span>

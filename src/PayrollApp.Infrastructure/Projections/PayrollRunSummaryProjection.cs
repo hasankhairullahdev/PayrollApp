@@ -7,8 +7,9 @@ namespace PayrollApp.Infrastructure.Projections;
 /// <summary>
 /// Single stream projection untuk PayrollRunSummary read model.
 /// Diupdate setiap kali ada event baru di PayrollRun aggregate stream.
+/// MUST be partial for Marten 9.x source generator
 /// </summary>
-public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSummary, Guid>
+public partial class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSummary, Guid>
 {
     /// <summary>
     /// Create initial read model dari PayrollRunCreated event
