@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PayrollApp.Api/PayrollApp.Api.csproj" />
+    <Project Path="src/PayrollApp.Application/PayrollApp.Application.csproj" />
+    <Project Path="src/PayrollApp.Domain/PayrollApp.Domain.csproj" />
+    <Project Path="src/PayrollApp.Engine/PayrollApp.Engine.csproj" />
+    <Project Path="src/PayrollApp.Infrastructure/PayrollApp.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PayrollApp.Tests.Domain/PayrollApp.Tests.Domain.csproj" />
+    <Project Path="tests/PayrollApp.Tests.Engine/PayrollApp.Tests.Engine.csproj" />
+  </Folder>
+</Solution>
