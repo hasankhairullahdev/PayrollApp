@@ -38,14 +38,17 @@ public class PayrollCalculationJob
         {
             await using var session = _documentStore.LightweightSession();
             
-            // Load PayrollRun aggregate
-            var payrollRun = await session.Events.AggregateStreamAsync<PayrollRun>(payrollRunId, token: cancellationToken.ShutdownToken);
+            // Load PayrollRun aggregate manually (avoid source generator requirement)
+            var events = await session.Events.FetchStreamAsync(payrollRunId, token: cancellationToken.ShutdownToken);
             
-            if (payrollRun == null)
+            if (events == null || !events.Any())
             {
                 _logger.LogError("PayrollRun {PayrollRunId} not found", payrollRunId);
                 throw new InvalidOperationException($"PayrollRun {payrollRunId} not found");
             }
+            
+            // Reconstruct aggregate from events
+            var payrollRun = PayrollRun.FromEvents(events.Select(e => e.Data));
             
             // Check if already calculated (idempotency check)
             if (payrollRun.Status != Domain.Enums.PayrollStatus.Calculating)

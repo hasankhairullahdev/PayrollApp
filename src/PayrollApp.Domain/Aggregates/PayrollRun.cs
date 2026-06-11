@@ -233,65 +233,111 @@ public partial class PayrollRun
         Version++;
     }
 
-    // Event sourcing: apply event to update state
+    // Event sourcing: apply event to update state (private for internal use)
     private void Apply(object @event)
     {
         switch (@event)
         {
             case PayrollRunCreated e:
-                Id = e.PayrollRunId;
-                Month = e.Month;
-                Year = e.Year;
-                Status = PayrollStatus.Draft;
-                CreatedBy = e.CreatedBy;
-                CreatedAt = e.CreatedAt;
+                Apply(e);
                 break;
-
             case PayrollCalculated e:
-                Status = PayrollStatus.Calculated;
-                LineItems = e.LineItems;
-                TotalAmount = new Money(e.TotalAmount);
-                TotalEmployees = e.LineItems.Count;
+                Apply(e);
                 break;
-
             case PayrollReviewStarted e:
-                Status = PayrollStatus.UnderReview;
+                Apply(e);
                 break;
-
             case PayrollApproved e:
-                Status = PayrollStatus.Approved;
-                ApprovedBy = e.ApprovedBy;
-                ApprovedAt = e.ApprovedAt;
+                Apply(e);
                 break;
-
             case PayrollRejected e:
-                Status = PayrollStatus.Draft; // Back to draft after rejection
+                Apply(e);
                 break;
-
             case PayrollLocked e:
-                Status = PayrollStatus.Locked;
-                LockedBy = e.LockedBy;
-                LockedAt = e.LockedAt;
+                Apply(e);
                 break;
-
             case DisbursementConfirmed e:
-                Status = PayrollStatus.Disbursed;
+                Apply(e);
                 break;
-
             default:
-                // Ignore events we don't handle (like PayslipGenerated, DisbursementInitiated)
+                // Ignore events we don't handle
                 break;
         }
     }
 
-    // For Marten event sourcing
-    public void Load(IEnumerable<object> events)
+    // Public Apply methods for Marten source generator
+    public void Apply(PayrollRunCreated e)
+    {
+        Id = e.PayrollRunId;
+        Month = e.Month;
+        Year = e.Year;
+        Status = PayrollStatus.Draft;
+        CreatedBy = e.CreatedBy;
+        CreatedAt = e.CreatedAt;
+    }
+
+    public void Apply(PayrollCalculated e)
+    {
+        Status = PayrollStatus.Calculated;
+        LineItems = e.LineItems;
+        TotalAmount = new Money(e.TotalAmount);
+        TotalEmployees = e.LineItems.Count;
+    }
+
+    public void Apply(PayrollReviewStarted e)
+    {
+        Status = PayrollStatus.UnderReview;
+    }
+
+    public void Apply(PayrollApproved e)
+    {
+        Status = PayrollStatus.Approved;
+        ApprovedBy = e.ApprovedBy;
+        ApprovedAt = e.ApprovedAt;
+    }
+
+    public void Apply(PayrollRejected e)
+    {
+        Status = PayrollStatus.Draft; // Back to draft after rejection
+    }
+
+    public void Apply(PayrollLocked e)
+    {
+        Status = PayrollStatus.Locked;
+        LockedBy = e.LockedBy;
+        LockedAt = e.LockedAt;
+    }
+
+    public void Apply(PayslipGenerated e)
+    {
+        // No state change needed for payslip generation
+    }
+
+    public void Apply(DisbursementInitiated e)
+    {
+        // No state change needed for disbursement initiation
+    }
+
+    public void Apply(DisbursementConfirmed e)
+    {
+        Status = PayrollStatus.Disbursed;
+    }
+    // For Marten event sourcing - load events into aggregate
+    private void Load(IEnumerable<object> events)
     {
         foreach (var @event in events)
         {
             Apply(@event);
             Version++;
         }
+    }
+
+    // Factory method for reconstructing aggregate from events
+    public static PayrollRun FromEvents(IEnumerable<object> events)
+    {
+        var aggregate = new PayrollRun();
+        aggregate.Load(events);
+        return aggregate;
     }
 
     public IEnumerable<object> GetUncommittedEvents() => _uncommittedEvents;
