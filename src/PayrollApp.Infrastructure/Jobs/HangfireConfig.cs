@@ -1,5 +1,8 @@
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace PayrollApp.Infrastructure.Jobs;
 

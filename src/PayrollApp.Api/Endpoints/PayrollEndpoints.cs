@@ -14,8 +14,7 @@ public static class PayrollEndpoints
     public static void MapPayrollEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/payroll")
-            .WithTags("Payroll")
-            .WithOpenApi();
+            .WithTags("Payroll");
 
         // GET /api/payroll - List payroll runs dengan pagination & filtering
         group.MapGet("/", GetPayrollRuns)
@@ -59,10 +58,10 @@ public static class PayrollEndpoints
         [FromQuery] int? year,
         [FromQuery] int? month,
         [FromQuery] string? status,
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken,
         [FromServices] IMediator mediator,
-        CancellationToken cancellationToken = default)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20)
     {
         var query = new GetPayrollRunsQuery
         {

@@ -55,7 +55,7 @@ public class GetPayrollRunsQueryHandler : IRequestHandler<GetPayrollRunsQuery, R
             await using var session = _documentStore.QuerySession();
 
             // Build query
-            var query = session.Query<PayrollRunSummary>();
+            var query = session.Query<PayrollRunSummary>().AsQueryable();
 
             // Apply filters
             if (request.Year.HasValue)
@@ -77,10 +77,10 @@ public class GetPayrollRunsQueryHandler : IRequestHandler<GetPayrollRunsQuery, R
             }
 
             // Get total count
-            var totalCount = await query.CountAsync(cancellationToken);
+            var totalCount = await session.Query<PayrollRunSummary>().CountAsync(cancellationToken);
 
             // Apply pagination and ordering
-            var items = await query
+            var itemsResult = await query
                 .OrderByDescending(x => x.Year)
                 .ThenByDescending(x => x.Month)
                 .Skip((request.PageNumber - 1) * request.PageSize)
@@ -89,7 +89,7 @@ public class GetPayrollRunsQueryHandler : IRequestHandler<GetPayrollRunsQuery, R
 
             var response = new PayrollRunsResponse
             {
-                Items = items,
+                Items = itemsResult.ToList(),
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
@@ -97,7 +97,7 @@ public class GetPayrollRunsQueryHandler : IRequestHandler<GetPayrollRunsQuery, R
 
             _logger.LogInformation(
                 "Retrieved {Count} payroll runs (page {PageNumber}/{TotalPages})",
-                items.Count, request.PageNumber, response.TotalPages);
+                itemsResult.Count, request.PageNumber, response.TotalPages);
 
             return Result.Success(response);
         }

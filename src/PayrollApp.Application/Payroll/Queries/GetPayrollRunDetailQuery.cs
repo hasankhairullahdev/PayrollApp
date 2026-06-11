@@ -59,7 +59,7 @@ public class GetPayrollRunDetailQueryHandler : IRequestHandler<GetPayrollRunDeta
             }
 
             // Get line items
-            var lineItems = await session.Query<PayrollLineItem>()
+            var lineItemsResult = await session.Query<PayrollLineItem>()
                 .Where(x => x.PayrollRunId == request.PayrollRunId)
                 .OrderBy(x => x.EmployeeName)
                 .ToListAsync(cancellationToken);
@@ -67,12 +67,12 @@ public class GetPayrollRunDetailQueryHandler : IRequestHandler<GetPayrollRunDeta
             var response = new PayrollRunDetailResponse
             {
                 Summary = summary,
-                LineItems = lineItems
+                LineItems = lineItemsResult.ToList()
             };
 
             _logger.LogInformation(
                 "Retrieved PayrollRun {PayrollRunId} detail with {LineItemCount} line items",
-                request.PayrollRunId, lineItems.Count);
+                request.PayrollRunId, lineItemsResult.Count);
 
             return Result.Success(response);
         }

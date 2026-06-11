@@ -1,8 +1,8 @@
 using Marten;
 using Marten.Events.Projections;
-using PayrollApp.Domain.Aggregates;
+using JasperFx.Events.Projections;  // ProjectionLifecycle moved here in Marten 9.x
+using Microsoft.Extensions.DependencyInjection;
 using PayrollApp.Infrastructure.Projections;
-using Weasel.Core;
 
 namespace PayrollApp.Infrastructure.EventStore;
 
@@ -10,43 +10,30 @@ public static class MartenConfig
 {
     public static void ConfigureMarten(this IServiceCollection services, string connectionString)
     {
-        services.AddMarten(options =>
+        services.AddMarten(opts =>
         {
             // Connection string
-            options.Connection(connectionString);
+            opts.Connection(connectionString);
             
-            // Auto create/update schema
-            options.AutoCreateSchemaObjects = AutoCreate.All;
+            // Register domain events
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollRunCreated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollReviewStarted>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollApproved>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollRejected>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollLocked>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayslipGenerated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.DisbursementInitiated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.DisbursementConfirmed>();
             
-            // Event store configuration
-            options.Events.StreamIdentity = StreamIdentity.AsGuid;
-            
-            // Register aggregates for event sourcing
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayrollRunCreated>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculated>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayrollReviewStarted>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayrollApproved>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayrollRejected>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayrollLocked>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.PayslipGenerated>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.DisbursementInitiated>();
-            options.Events.AddEventType<PayrollApp.Domain.Events.DisbursementConfirmed>();
-            
-            // Register projections
-            options.Projections.Add<PayrollRunSummaryProjection>(ProjectionLifecycle.Inline);
-            
-            // Use optimistic concurrency by default
-            options.UseDefaultSerialization(
-                EnumStorage.AsString,
-                nonPublicMembersStorage: NonPublicMembersStorage.All
-            );
+            // Register projections - Inline for strong consistency
+            opts.Projections.Add<PayrollRunSummaryProjection>(ProjectionLifecycle.Inline);
             
             // Database schema name
-            options.Events.DatabaseSchemaName = "payroll_events";
-            options.DatabaseSchemaName = "payroll";
+            opts.Events.DatabaseSchemaName = "payroll_events";
+            opts.DatabaseSchemaName = "payroll";
         })
-        .UseLightweightSessions() // For better performance
-        .OptimizeArtifactWorkflow(); // Optimize for development
+        .UseLightweightSessions();
     }
 }
 

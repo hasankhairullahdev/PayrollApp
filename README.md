@@ -75,9 +75,9 @@ Draft → Calculating → Calculated → UnderReview → Approved → Locked →
 ```
 
 ### 4. Document Generation
-- PDF payslip per employee (QuestPDF)
-- Excel export untuk BPJS
-- Bank file generation untuk disbursement
+- **PDF Payslip** per employee (QuestPDF) - professional layout
+- **Excel Export** dengan 3 sheets: Summary, BPJS, PPh 21
+- **Bank File Generation** untuk 4 bank: BCA, Mandiri, BNI, Permata
 
 ### 5. Event Sourcing
 - Full audit trail via event store
@@ -143,11 +143,20 @@ JWT_SECRET=your-secret-here
 
 4. Run backend:
 ```bash
-cd src/Api
+cd src/PayrollApp.Api
 dotnet run
 ```
 
-Backend akan berjalan di `http://localhost:5000`
+Backend akan berjalan di `https://localhost:5044` (atau check launchSettings.json)
+
+Atau gunakan PowerShell scripts:
+```powershell
+# Start semua services (PostgreSQL, Redis, API)
+.\start.ps1
+
+# Stop semua services
+.\stop.ps1
+```
 
 ### Frontend Setup
 
@@ -196,6 +205,37 @@ Frontend akan berjalan di `http://localhost:3000`
 - Projections untuk read models
 - No direct event stream queries
 
+## API Endpoints
+
+### Payroll Management
+```
+POST   /api/payroll                    # Create payroll run
+GET    /api/payroll                    # List payroll runs (with status filter)
+GET    /api/payroll/{id}               # Get payroll run detail
+POST   /api/payroll/{id}/approve       # Approve payroll
+POST   /api/payroll/{id}/lock          # Lock payroll
+GET    /api/payroll/{id}/line-items    # Get line items
+```
+
+### Reports & Export
+```
+GET    /api/reports/payroll/{id}/payslip/{employeeId}/pdf   # Download PDF payslip
+GET    /api/reports/payroll/{id}/export/excel               # Download Excel export
+GET    /api/reports/payroll/{id}/bank-file?bank=bca         # Generate bank file
+```
+
+Supported banks: `bca`, `mandiri`, `bni`, `permata`
+
+### Health Check
+```
+GET    /health                         # API health status
+```
+
+### Hangfire Dashboard
+```
+GET    /hangfire                       # Background jobs dashboard
+```
+
 ## Testing
 
 ```bash
@@ -203,24 +243,73 @@ Frontend akan berjalan di `http://localhost:3000`
 dotnet test
 
 # Run specific test project
-dotnet test tests/Domain.Tests
-dotnet test tests/Engine.Tests
-dotnet test tests/Application.Tests
+dotnet test tests/PayrollApp.Tests.Domain
+dotnet test tests/PayrollApp.Tests.Engine
+
+# Run with coverage
+dotnet test /p:CollectCoverage=true
 ```
+
+### Test Coverage
+- **Domain Tests**: Aggregate behavior, state machine, invariants
+- **Engine Tests**: PPh21 calculation, BPJS calculation, prorate logic
+- **Integration Tests**: End-to-end command/query flows
+
+## Demo Flow
+
+1. **Start Services**
+   ```powershell
+   .\start.ps1
+   ```
+
+2. **Create Payroll Run**
+   - Open frontend: `http://localhost:3000/payroll`
+   - Click "Create Payroll Run"
+   - Select period (month + year)
+   - Submit
+
+3. **Wait for Calculation**
+   - Status akan berubah: Draft → Calculating → Calculated
+   - Monitor di Hangfire dashboard: `https://localhost:5044/hangfire`
+
+4. **Review & Approve**
+   - Click "View Details" pada payroll run
+   - Review line items
+   - Click "Approve Payroll"
+
+5. **Lock & Generate Documents**
+   - Click "Lock Payroll"
+   - Download PDF payslip per employee
+   - Download Excel export
+   - Generate bank file untuk disbursement
 
 ## Deployment
 
 ### Backend (Docker)
 ```bash
-docker build -t payroll-api .
-docker run -p 5000:5000 payroll-api
+docker build -t payroll-api -f src/PayrollApp.Api/Dockerfile .
+docker run -p 5044:5044 \
+  -e DATABASE_URL="Host=postgres;Database=payroll_db;Username=postgres;Password=postgres" \
+  payroll-api
 ```
 
 ### Frontend (Vercel)
 ```bash
 cd frontend
-vercel deploy
+vercel deploy --prod
 ```
+
+### Full Stack (Docker Compose)
+```bash
+docker-compose up -d
+```
+
+Services:
+- API: `http://localhost:5044`
+- Frontend: `http://localhost:3000`
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+- Hangfire: `http://localhost:5044/hangfire`
 
 ## Contributing
 

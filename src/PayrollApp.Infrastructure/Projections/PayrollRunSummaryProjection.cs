@@ -8,7 +8,7 @@ namespace PayrollApp.Infrastructure.Projections;
 /// Single stream projection untuk PayrollRunSummary read model.
 /// Diupdate setiap kali ada event baru di PayrollRun aggregate stream.
 /// </summary>
-public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSummary>
+public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSummary, Guid>
 {
     /// <summary>
     /// Create initial read model dari PayrollRunCreated event
@@ -20,7 +20,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
             Id = @event.PayrollRunId,
             Month = @event.Month,
             Year = @event.Year,
-            Status = @event.Status,
+            Status = Domain.Enums.PayrollStatus.Draft,
             TotalEmployees = 0,
             TotalAmount = 0m,
             CreatedBy = @event.CreatedBy,
@@ -47,7 +47,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
     /// </summary>
     public void Apply(PayrollReviewStarted @event, PayrollRunSummary summary)
     {
-        summary.Status = @event.Status;
+        summary.Status = Domain.Enums.PayrollStatus.UnderReview;
     }
     
     /// <summary>
@@ -55,7 +55,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
     /// </summary>
     public void Apply(PayrollApproved @event, PayrollRunSummary summary)
     {
-        summary.Status = @event.Status;
+        summary.Status = Domain.Enums.PayrollStatus.Approved;
         summary.ApprovedBy = @event.ApprovedBy;
         summary.ApprovedAt = @event.ApprovedAt;
     }
@@ -65,7 +65,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
     /// </summary>
     public void Apply(PayrollRejected @event, PayrollRunSummary summary)
     {
-        summary.Status = @event.Status;
+        summary.Status = Domain.Enums.PayrollStatus.Draft;
         // Reset approval info karena kembali ke Draft
         summary.ApprovedBy = null;
         summary.ApprovedAt = null;
@@ -76,7 +76,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
     /// </summary>
     public void Apply(PayrollLocked @event, PayrollRunSummary summary)
     {
-        summary.Status = @event.Status;
+        summary.Status = Domain.Enums.PayrollStatus.Locked;
         summary.LockedBy = @event.LockedBy;
         summary.LockedAt = @event.LockedAt;
     }
@@ -86,7 +86,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
     /// </summary>
     public void Apply(DisbursementInitiated @event, PayrollRunSummary summary)
     {
-        summary.Status = @event.Status;
+        summary.Status = Domain.Enums.PayrollStatus.Disbursed;
     }
     
     /// <summary>
@@ -94,7 +94,7 @@ public class PayrollRunSummaryProjection : SingleStreamProjection<PayrollRunSumm
     /// </summary>
     public void Apply(DisbursementConfirmed @event, PayrollRunSummary summary)
     {
-        summary.Status = @event.Status;
+        summary.Status = Domain.Enums.PayrollStatus.Disbursed;
     }
 }
 

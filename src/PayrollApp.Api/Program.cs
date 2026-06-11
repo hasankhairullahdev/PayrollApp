@@ -44,11 +44,8 @@ builder.Services.AddMediatR(config =>
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(PayrollApp.Application.Common.Result).Assembly);
 
-// Add Calculation Engine services
-builder.Services.AddSingleton<PPh21Calculator>();
-builder.Services.AddSingleton<BPJSCalculator>();
-builder.Services.AddSingleton<OvertimeCalculator>();
-builder.Services.AddSingleton<ProrateCalculator>();
+// Note: Calculation Engine classes (PPh21Calculator, BPJSCalculator, etc.) are static
+// No need to register them in DI container
 
 // Add Background Jobs
 builder.Services.AddScoped<PayrollCalculationJob>();
@@ -85,6 +82,7 @@ app.UseHangfireDashboardWithAuth();
 
 // Map endpoints
 app.MapPayrollEndpoints();
+app.MapReportEndpoints();
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new
@@ -94,8 +92,7 @@ app.MapGet("/health", () => Results.Ok(new
     Environment = app.Environment.EnvironmentName
 }))
 .WithName("HealthCheck")
-.WithTags("Health")
-.WithOpenApi();
+.WithTags("Health");
 
 app.Run();
 

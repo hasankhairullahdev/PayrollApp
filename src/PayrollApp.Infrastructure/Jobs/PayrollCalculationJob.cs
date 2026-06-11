@@ -14,25 +14,13 @@ namespace PayrollApp.Infrastructure.Jobs;
 public class PayrollCalculationJob
 {
     private readonly IDocumentStore _documentStore;
-    private readonly PPh21Calculator _pph21Calculator;
-    private readonly BPJSCalculator _bpjsCalculator;
-    private readonly OvertimeCalculator _overtimeCalculator;
-    private readonly ProrateCalculator _prorateCalculator;
     private readonly ILogger<PayrollCalculationJob> _logger;
     
     public PayrollCalculationJob(
         IDocumentStore documentStore,
-        PPh21Calculator pph21Calculator,
-        BPJSCalculator bpjsCalculator,
-        OvertimeCalculator overtimeCalculator,
-        ProrateCalculator prorateCalculator,
         ILogger<PayrollCalculationJob> logger)
     {
         _documentStore = documentStore;
-        _pph21Calculator = pph21Calculator;
-        _bpjsCalculator = bpjsCalculator;
-        _overtimeCalculator = overtimeCalculator;
-        _prorateCalculator = prorateCalculator;
         _logger = logger;
     }
     
@@ -118,15 +106,15 @@ public class PayrollCalculationJob
     /// </summary>
     private Domain.ValueObjects.PayrollLineItem CalculateEmployeePayroll(Employee employee, int month, int year)
     {
+        var period = new DateOnly(year, month, 1);
+        
         // 1. Calculate basic salary + allowances
-        var basicSalary = employee.BasicSalary;
-        var allowances = employee.SalaryComponents
-            .Where(x => x.Type == Domain.Enums.SalaryComponentType.Allowance)
-            .Sum(x => x.Amount);
+        var basicSalary = employee.GetBasicSalary(period);
+        var allowances = employee.GetTotalAllowances(period);
         
         // 2. Calculate overtime (if any)
         // TODO: Get actual overtime data from timesheet
-        var overtimeAmount = 0m;
+        var overtimeAmount = Money.Zero;
         
         // 3. Calculate prorate (if join/resign mid-month)
         var isProrated = false;
@@ -134,59 +122,55 @@ public class PayrollCalculationJob
         int? workingDays = null;
         int? totalWorkingDays = null;
         
-        if (employee.JoinDate.HasValue)
+        var joinDate = employee.JoinDate;
+        if (joinDate.Year == year && joinDate.Month == month && joinDate.Day > 1)
         {
-            var joinDate = employee.JoinDate.Value;
-            if (joinDate.Year == year && joinDate.Month == month && joinDate.Day > 1)
-            {
-                // Employee joined mid-month
-                var startDate = joinDate;
-                var endDate = new DateTime(year, month, DateTime.DaysInMonth(year, month));
-                var holidays = new List<DateTime>(); // TODO: Get from holiday calendar
-                
-                var prorateResult = _prorateCalculator.CalculateProrate(basicSalary, startDate, endDate, holidays);
-                basicSalary = prorateResult.ProratedAmount;
-                isProrated = true;
-                proratePercentage = prorateResult.Percentage;
-                workingDays = prorateResult.WorkingDays;
-                totalWorkingDays = prorateResult.TotalWorkingDays;
-            }
+            // Employee joined mid-month
+            var proratedSalary = ProrateCalculator.CalculateForJoin(basicSalary, joinDate, month, year);
+            
+            var periodStart = new DateOnly(year, month, 1);
+            var periodEnd = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+            
+            workingDays = ProrateCalculator.CountWorkingDays(joinDate, periodEnd);
+            totalWorkingDays = ProrateCalculator.CountWorkingDays(periodStart, periodEnd);
+            proratePercentage = ProrateCalculator.GetProratePercentage(joinDate, periodEnd, month, year) / 100m;
+            
+            basicSalary = proratedSalary;
+            isProrated = true;
         }
         
         // 4. Calculate gross salary
         var grossSalary = basicSalary + allowances + overtimeAmount;
         
         // 5. Calculate BPJS
-        var bpjsResult = _bpjsCalculator.Calculate(grossSalary);
-        var totalBPJS = bpjsResult.HealthEmployee + bpjsResult.JHTEmployee + bpjsResult.JPEmployee;
+        var bpjsResult = BPJSCalculator.Calculate(grossSalary);
+        var totalBPJS = bpjsResult.TotalEmployeeContribution.Amount;
         
         // 6. Calculate PPh 21
-        var pph21 = _pph21Calculator.Calculate(
+        var pph21Result = PPh21Calculator.Calculate(
             grossSalary,
-            employee.PTKPStatus ?? "TK/0",
-            employee.HasNPWP
+            employee.PtkpStatus,
+            employee.HasNpwp
         );
         
         // 7. Calculate deductions
-        var deductions = employee.SalaryComponents
-            .Where(x => x.Type == Domain.Enums.SalaryComponentType.Deduction)
-            .Sum(x => x.Amount);
+        var deductions = employee.GetTotalDeductions(period);
         
         // 8. Calculate take home pay
-        var takeHomePay = grossSalary - totalBPJS - pph21 - deductions;
+        var takeHomePay = grossSalary.Amount - totalBPJS - pph21Result.Pph21Amount.Amount - deductions.Amount;
         
         // 9. Create line item
         return new Domain.ValueObjects.PayrollLineItem(
             Guid.NewGuid(),
-            employee.Id.Value,
-            employee.Name,
-            basicSalary,
-            allowances,
-            overtimeAmount,
-            grossSalary,
-            deductions,
+            employee.Id.ToString(),
+            employee.FullName,
+            basicSalary.Amount,
+            allowances.Amount,
+            overtimeAmount.Amount,
+            grossSalary.Amount,
+            deductions.Amount,
             bpjsResult,
-            pph21,
+            pph21Result.Pph21Amount.Amount,
             takeHomePay,
             isProrated,
             workingDays,
@@ -205,28 +189,40 @@ public class PayrollCalculationJob
         // For now, return mock data
         await Task.CompletedTask;
         
-        var mockEmployee = Employee.Create(
-            new EmployeeId("EMP-001"),
+        var mockEmployee = new Employee(
+            Guid.NewGuid(),
+            "EMP-001",
             "John Doe",
-            10_000_000m, // Basic salary 10 juta
+            "john.doe@company.com",
+            "123456789012345", // NPWP
             "TK/0",
-            true, // Has NPWP
-            "BCA",
-            "1234567890",
-            "John Doe"
+            new DateOnly(2024, 1, 1)
         );
+        
+        // Add basic salary
+        mockEmployee.AddSalaryComponent(new SalaryComponent(
+            Guid.NewGuid(),
+            "Basic Salary",
+            new Money(10_000_000m),
+            Domain.Enums.SalaryComponentType.BasicSalary,
+            new DateOnly(2024, 1, 1)
+        ));
         
         // Add allowances
         mockEmployee.AddSalaryComponent(new SalaryComponent(
+            Guid.NewGuid(),
             "Tunjangan Transport",
-            Domain.Enums.SalaryComponentType.Allowance,
-            1_000_000m
+            new Money(1_000_000m),
+            Domain.Enums.SalaryComponentType.FixedAllowance,
+            new DateOnly(2024, 1, 1)
         ));
         
         mockEmployee.AddSalaryComponent(new SalaryComponent(
+            Guid.NewGuid(),
             "Tunjangan Makan",
-            Domain.Enums.SalaryComponentType.Allowance,
-            500_000m
+            new Money(500_000m),
+            Domain.Enums.SalaryComponentType.FixedAllowance,
+            new DateOnly(2024, 1, 1)
         ));
         
         return new List<Employee> { mockEmployee };

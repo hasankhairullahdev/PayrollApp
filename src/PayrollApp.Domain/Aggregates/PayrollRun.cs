@@ -5,7 +5,7 @@ using PayrollApp.Domain.ValueObjects;
 
 namespace PayrollApp.Domain.Aggregates;
 
-public class PayrollRun
+public partial class PayrollRun
 {
     private readonly List<object> _uncommittedEvents = new();
 
@@ -171,9 +171,12 @@ public class PayrollRun
         if (string.IsNullOrWhiteSpace(pdfPath))
             throw new ArgumentException("PdfPath cannot be empty", nameof(pdfPath));
 
+        if (!Guid.TryParse(employeeId, out var employeeGuid))
+            throw new ArgumentException("EmployeeId must be a valid GUID", nameof(employeeId));
+
         var @event = new PayslipGenerated(
             Id,
-            employeeId,
+            new EmployeeId(employeeGuid),
             pdfPath,
             DateTime.UtcNow
         );
@@ -247,7 +250,7 @@ public class PayrollRun
             case PayrollCalculated e:
                 Status = PayrollStatus.Calculated;
                 LineItems = e.LineItems;
-                TotalAmount = Money.FromDecimal(e.TotalAmount);
+                TotalAmount = new Money(e.TotalAmount);
                 TotalEmployees = e.LineItems.Count;
                 break;
 
