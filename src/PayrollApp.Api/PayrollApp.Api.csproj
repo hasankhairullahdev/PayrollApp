@@ -10,4 +10,10 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PayrollApp.Application\PayrollApp.Application.csproj" />
+    <ProjectReference Include="..\PayrollApp.Infrastructure\PayrollApp.Infrastructure.csproj" />
+    <ProjectReference Include="..\PayrollApp.Engine\PayrollApp.Engine.csproj" />
+  </ItemGroup>
+
 </Project>
