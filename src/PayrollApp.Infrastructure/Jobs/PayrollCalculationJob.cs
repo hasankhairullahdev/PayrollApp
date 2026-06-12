@@ -92,6 +92,32 @@ public class PayrollCalculationJob
             
             // Save events
             session.Events.Append(payrollRunId, payrollRun.GetUncommittedEvents().ToArray());
+            
+            // Save line items as documents (for querying)
+            var readModelLineItems = lineItems.Select(item => new ReadModels.PayrollLineItem
+            {
+                Id = Guid.NewGuid(),
+                PayrollRunId = payrollRunId,
+                EmployeeId = Guid.Parse(item.EmployeeId),
+                EmployeeCode = item.EmployeeId,
+                EmployeeName = item.EmployeeName,
+                BasicSalary = item.BasicSalary,
+                Allowances = item.TotalAllowances,
+                Overtime = item.TotalOvertime,
+                GrossSalary = item.GrossSalary,
+                Deductions = item.TotalDeductions,
+                BpjsKesehatan = item.BPJS.KesehatanEmployee.Amount,
+                BpjsKetenagakerjaan = item.BPJS.JhtEmployee.Amount + item.BPJS.JpEmployee.Amount,
+                TotalBpjs = item.BPJS.TotalEmployeeContribution.Amount,
+                Pph21 = item.Pph21,
+                TakeHomePay = item.TakeHomePay,
+                IsProrated = item.IsProrated,
+                ProratePercentage = item.ProratePercentage,
+                CalculatedAt = DateTime.UtcNow
+            }).ToList();
+            
+            session.Store(readModelLineItems.ToArray());
+            
             await session.SaveChangesAsync(cancellationToken.ShutdownToken);
             
             _logger.LogInformation("Payroll calculation completed for PayrollRun {PayrollRunId}. Total: {TotalAmount:N0}, Employees: {EmployeeCount}", 
