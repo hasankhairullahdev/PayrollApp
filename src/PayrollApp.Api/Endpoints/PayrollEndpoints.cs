@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PayrollApp.Application.Common;
 using PayrollApp.Application.Payroll.Commands;
 using PayrollApp.Application.Payroll.Queries;
+using PayrollApp.Infrastructure.ReadModels;
 
 namespace PayrollApp.Api.Endpoints;
 
@@ -28,6 +29,13 @@ public static class PayrollEndpoints
             .WithName("GetPayrollRunDetail")
             .WithSummary("Get payroll run detail with line items")
             .Produces<PayrollRunDetailResponse>(200)
+            .Produces<ProblemDetails>(404);
+
+        // GET /api/payroll/{id}/line-items - Get payroll line items
+        group.MapGet("/{id:guid}/line-items", GetPayrollLineItems)
+            .WithName("GetPayrollLineItems")
+            .WithSummary("Get payroll run line items")
+            .Produces<List<PayrollLineItem>>(200)
             .Produces<ProblemDetails>(404);
 
         // POST /api/payroll - Create new payroll run
@@ -88,7 +96,20 @@ public static class PayrollEndpoints
         var result = await mediator.Send(query, cancellationToken);
 
         return result.IsSuccess
-            ? Results.Ok(result.Value)
+            ? Results.Ok(result.Value.Summary)
+            : Results.NotFound(CreateProblemDetails("Payroll run not found", result.Error));
+    }
+
+    private static async Task<IResult> GetPayrollLineItems(
+        Guid id,
+        [FromServices] IMediator mediator,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetPayrollRunDetailQuery { PayrollRunId = id };
+        var result = await mediator.Send(query, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok(result.Value.LineItems)
             : Results.NotFound(CreateProblemDetails("Payroll run not found", result.Error));
     }
 
