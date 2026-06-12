@@ -28,6 +28,7 @@ public static class MartenConfig
             
             // Register projections - Inline for strong consistency
             opts.Projections.Add<PayrollRunSummaryProjection>(ProjectionLifecycle.Inline);
+            opts.Projections.Add<PayrollLineItemProjection>(ProjectionLifecycle.Inline);
             
             // Database schema name
             opts.Events.DatabaseSchemaName = "payroll_events";
