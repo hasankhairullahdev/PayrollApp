@@ -91,6 +91,30 @@ export default function PayrollDetailPage() {
     },
   });
 
+  // Memoize status checks (rerender-derived-state)
+  const canApprove = useMemo(() => payrollRun?.status === 'UnderReview', [payrollRun?.status]);
+  const canLock = useMemo(() => payrollRun?.status === 'Approved', [payrollRun?.status]);
+
+  // Memoize calculations (rerender-memo)
+  const totals = useMemo(() => ({
+    gross: lineItems?.reduce((sum, item) => sum + item.grossSalary, 0) || 0,
+    deductions: lineItems?.reduce((sum, item) =>
+      sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0) || 0,
+  }), [lineItems]);
+
+  // Stable callbacks (rerender-functional-setstate)
+  const handleApprove = useCallback(() => {
+    setConfirmDialog({ isOpen: true, action: 'approve' });
+  }, []);
+
+  const handleLock = useCallback(() => {
+    setConfirmDialog({ isOpen: true, action: 'lock' });
+  }, []);
+
+  const handleCloseDialog = useCallback(() => {
+    setConfirmDialog({ isOpen: false, action: null });
+  }, []);
+
   if (isLoading) {
     return (
       <div className="p-8 animate-fade-in">
@@ -131,30 +155,6 @@ export default function PayrollDetailPage() {
       </div>
     );
   }
-
-  // Memoize status checks (rerender-derived-state)
-  const canApprove = useMemo(() => payrollRun.status === 'UnderReview', [payrollRun.status]);
-  const canLock = useMemo(() => payrollRun.status === 'Approved', [payrollRun.status]);
-
-  // Memoize calculations (rerender-memo)
-  const totals = useMemo(() => ({
-    gross: lineItems?.reduce((sum, item) => sum + item.grossSalary, 0) || 0,
-    deductions: lineItems?.reduce((sum, item) =>
-      sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0) || 0,
-  }), [lineItems]);
-
-  // Stable callbacks (rerender-functional-setstate)
-  const handleApprove = useCallback(() => {
-    setConfirmDialog({ isOpen: true, action: 'approve' });
-  }, []);
-
-  const handleLock = useCallback(() => {
-    setConfirmDialog({ isOpen: true, action: 'lock' });
-  }, []);
-
-  const handleCloseDialog = useCallback(() => {
-    setConfirmDialog({ isOpen: false, action: null });
-  }, []);
 
   return (
     <div className="p-8 animate-fade-in max-w-[1800px] mx-auto">
