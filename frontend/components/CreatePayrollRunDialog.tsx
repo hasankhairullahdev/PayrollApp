@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
@@ -20,81 +20,122 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
       const response = await api.post('/api/payroll', {
         month,
         year,
-        createdBy: 'current-user', // TODO: Get from auth context
+        createdBy: 'current-user',
       });
       return response.data;
     },
     onSuccess: () => {
-      // Invalidate all payroll-runs queries (with any filter)
       queryClient.invalidateQueries({
         queryKey: ['payroll-runs'],
         exact: false
       });
       onClose();
       setError(null);
+      // Reset to current month/year
+      setMonth(new Date().getMonth() + 1);
+      setYear(new Date().getFullYear());
     },
     onError: (err: any) => {
       setError(err.response?.data?.message || 'Failed to create payroll run');
     },
   });
 
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
+  // Stable callbacks (rerender-functional-setstate)
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     createMutation.mutate();
-  };
+  }, [createMutation]);
+
+  const handleClose = useCallback(() => {
+    if (!createMutation.isPending) {
+      setError(null);
+      onClose();
+    }
+  }, [createMutation.isPending, onClose]);
+
+  if (!isOpen) return null;
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Create Payroll Run
-          </h3>
+  const months = [
+    { value: 1, label: 'Januari' },
+    { value: 2, label: 'Februari' },
+    { value: 3, label: 'Maret' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'Mei' },
+    { value: 6, label: 'Juni' },
+    { value: 7, label: 'Juli' },
+    { value: 8, label: 'Agustus' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'Oktober' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'Desember' },
+  ];
 
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="month" className="block text-sm font-medium text-gray-700 mb-1">
-                  Month
-                </label>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+      <div className="card-premium rounded-3xl shadow-2xl max-w-md w-full animate-scale-in overflow-hidden">
+        {/* Header with Gradient */}
+        <div className="bg-gradient-to-r from-cyan-500 to-purple-500 p-8 text-white">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold">Create Payroll Run</h3>
+              <p className="text-white/80 text-sm">Set up a new payroll period</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="p-8">
+          <div className="space-y-6">
+            {/* Month Selection */}
+            <div>
+              <label htmlFor="month" className="block text-sm font-semibold text-[#1E3A5F] mb-3">
+                Payroll Month
+              </label>
+              <div className="relative">
                 <select
                   id="month"
                   value={month}
                   onChange={(e) => setMonth(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-[#1E3A5F] font-medium focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all appearance-none cursor-pointer"
                   required
+                  disabled={createMutation.isPending}
                 >
-                  <option value={1}>Januari</option>
-                  <option value={2}>Februari</option>
-                  <option value={3}>Maret</option>
-                  <option value={4}>April</option>
-                  <option value={5}>Mei</option>
-                  <option value={6}>Juni</option>
-                  <option value={7}>Juli</option>
-                  <option value={8}>Agustus</option>
-                  <option value={9}>September</option>
-                  <option value={10}>Oktober</option>
-                  <option value={11}>November</option>
-                  <option value={12}>Desember</option>
+                  {months.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
                 </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-5 h-5 text-[#64748B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-1">
-                  Year
-                </label>
+            {/* Year Selection */}
+            <div>
+              <label htmlFor="year" className="block text-sm font-semibold text-[#1E3A5F] mb-3">
+                Payroll Year
+              </label>
+              <div className="relative">
                 <select
                   id="year"
                   value={year}
                   onChange={(e) => setYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-[#1E3A5F] font-medium focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all appearance-none cursor-pointer"
                   required
+                  disabled={createMutation.isPending}
                 >
                   {years.map((y) => (
                     <option key={y} value={y}>
@@ -102,34 +143,72 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
                     </option>
                   ))}
                 </select>
-              </div>
-
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-5 h-5 text-[#64748B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
-              )}
+              </div>
             </div>
 
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={createMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {createMutation.isPending ? 'Creating...' : 'Create'}
-              </button>
+            {/* Error Message */}
+            {error && (
+              <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl animate-scale-in">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Info Box */}
+            <div className="p-4 bg-gradient-to-r from-cyan-50 to-purple-50 border-2 border-cyan-100 rounded-xl">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-[#1E3A5F]">
+                  A new payroll run will be created in <span className="font-bold">Draft</span> status. You can trigger calculation after creation.
+                </p>
+              </div>
             </div>
-          </form>
-        </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 justify-end mt-8">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={createMutation.isPending}
+              className="px-6 py-3 text-sm font-semibold text-[#64748B] bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center gap-2"
+            >
+              {createMutation.isPending ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create Payroll Run
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MoneyDisplay } from '@/components/MoneyDisplay';
 import { PayrollPeriodDisplay } from '@/components/PayrollPeriodDisplay';
@@ -132,12 +132,29 @@ export default function PayrollDetailPage() {
     );
   }
 
-  const canApprove = payrollRun.status === 'UnderReview';
-  const canLock = payrollRun.status === 'Approved';
+  // Memoize status checks (rerender-derived-state)
+  const canApprove = useMemo(() => payrollRun.status === 'UnderReview', [payrollRun.status]);
+  const canLock = useMemo(() => payrollRun.status === 'Approved', [payrollRun.status]);
 
-  const totalGross = lineItems?.reduce((sum, item) => sum + item.grossSalary, 0) || 0;
-  const totalDeductions = lineItems?.reduce((sum, item) =>
-    sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0) || 0;
+  // Memoize calculations (rerender-memo)
+  const totals = useMemo(() => ({
+    gross: lineItems?.reduce((sum, item) => sum + item.grossSalary, 0) || 0,
+    deductions: lineItems?.reduce((sum, item) =>
+      sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0) || 0,
+  }), [lineItems]);
+
+  // Stable callbacks (rerender-functional-setstate)
+  const handleApprove = useCallback(() => {
+    setConfirmDialog({ isOpen: true, action: 'approve' });
+  }, []);
+
+  const handleLock = useCallback(() => {
+    setConfirmDialog({ isOpen: true, action: 'lock' });
+  }, []);
+
+  const handleCloseDialog = useCallback(() => {
+    setConfirmDialog({ isOpen: false, action: null });
+  }, []);
 
   return (
     <div className="p-8 animate-fade-in max-w-[1800px] mx-auto">
@@ -174,7 +191,7 @@ export default function PayrollDetailPage() {
           <div className="flex gap-4 animate-slide-in" style={{ animationDelay: '100ms' }}>
             {canApprove && (
               <button
-                onClick={() => setConfirmDialog({ isOpen: true, action: 'approve' })}
+                onClick={handleApprove}
                 className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +202,7 @@ export default function PayrollDetailPage() {
             )}
             {canLock && (
               <button
-                onClick={() => setConfirmDialog({ isOpen: true, action: 'lock' })}
+                onClick={handleLock}
                 className="px-8 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,7 +249,7 @@ export default function PayrollDetailPage() {
                 </svg>
               </div>
             </div>
-            <MoneyDisplay amount={totalGross} className="text-xl font-bold text-[#1E3A5F]" />
+            <MoneyDisplay amount={totals.gross} className="text-xl font-bold text-[#1E3A5F]" />
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 hover-lift">
@@ -366,7 +383,7 @@ export default function PayrollDetailPage() {
                       <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.overtime, 0)} className="text-sm text-[#1E3A5F]" />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={totalGross} className="text-sm font-bold text-[#1E3A5F]" />
+                      <MoneyDisplay amount={totals.gross} className="text-sm font-bold text-[#1E3A5F]" />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan, 0)} className="text-sm text-red-600" />
@@ -401,11 +418,11 @@ export default function PayrollDetailPage() {
               </div>
               <div className="flex justify-between items-center py-3 border-b border-gray-100">
                 <span className="text-sm text-[#64748B]">Gross Amount</span>
-                <MoneyDisplay amount={totalGross} className="font-semibold text-[#1E3A5F]" />
+                <MoneyDisplay amount={totals.gross} className="font-semibold text-[#1E3A5F]" />
               </div>
               <div className="flex justify-between items-center py-3 border-b border-gray-100">
                 <span className="text-sm text-[#64748B]">Total Deductions</span>
-                <MoneyDisplay amount={totalDeductions} className="font-semibold text-red-600" />
+                <MoneyDisplay amount={totals.deductions} className="font-semibold text-red-600" />
               </div>
               <div className="flex justify-between items-center py-3 bg-[#F8FAFC] -mx-6 px-6 rounded-lg">
                 <span className="text-sm font-semibold text-[#1E3A5F]">Net Amount</span>
@@ -551,7 +568,7 @@ export default function PayrollDetailPage() {
         cancelText="Cancel"
         variant="primary"
         onConfirm={() => approveMutation.mutate()}
-        onCancel={() => setConfirmDialog({ isOpen: false, action: null })}
+        onCancel={handleCloseDialog}
       />
 
       <ConfirmDialog
@@ -562,7 +579,7 @@ export default function PayrollDetailPage() {
         cancelText="Cancel"
         variant="danger"
         onConfirm={() => lockMutation.mutate()}
-        onCancel={() => setConfirmDialog({ isOpen: false, action: null })}
+        onCancel={handleCloseDialog}
       />
     </div>
   );

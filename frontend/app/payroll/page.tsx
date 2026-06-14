@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MoneyDisplay } from '@/components/MoneyDisplay';
 import { PayrollPeriodDisplay } from '@/components/PayrollPeriodDisplay';
@@ -36,23 +36,33 @@ export default function PayrollPage() {
     refetchInterval: 5000,
   });
 
-  // Filter by year and sort
+  // Memoize filtered and sorted data (rerender-memo)
   const allPayrollRuns = payrollResponse?.items || [];
-  const filteredByYear = allPayrollRuns.filter(run => run.year === yearFilter);
   
-  const payrollRuns = [...filteredByYear].sort((a, b) => {
-    if (sortBy === 'period') {
-      // Sort by year desc, then month desc
-      if (a.year !== b.year) return b.year - a.year;
-      return b.month - a.month;
-    } else {
-      // Sort by creation date desc
+  const payrollRuns = useMemo(() => {
+    const filteredByYear = allPayrollRuns.filter(run => run.year === yearFilter);
+    
+    return [...filteredByYear].sort((a, b) => {
+      if (sortBy === 'period') {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+      }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-  });
+    });
+  }, [allPayrollRuns, yearFilter, sortBy]);
 
-  // Get available years from data
-  const availableYears = Array.from(new Set(allPayrollRuns.map(run => run.year))).sort((a, b) => b - a);
+  // Memoize available years (rerender-memo)
+  const availableYears = useMemo(() =>
+    Array.from(new Set(allPayrollRuns.map(run => run.year))).sort((a, b) => b - a),
+    [allPayrollRuns]
+  );
+
+  // Memoize summary calculations (rerender-memo)
+  const summary = useMemo(() => ({
+    totalAmount: payrollRuns.reduce((sum, run) => sum + (run.totalAmount || 0), 0),
+    totalEmployees: payrollRuns.reduce((sum, run) => sum + (run.totalEmployees || 0), 0),
+    activeRuns: payrollRuns.filter(r => ['Calculating', 'UnderReview', 'Approved'].includes(r.status)).length,
+  }), [payrollRuns]);
 
   const statusOptions = [
     { value: 'all', label: 'All', icon: '📊', color: 'from-slate-500 to-slate-600' },
@@ -113,10 +123,6 @@ export default function PayrollPage() {
     );
   }
 
-  const totalAmount = payrollRuns.reduce((sum, run) => sum + (run.totalAmount || 0), 0);
-  const totalEmployees = payrollRuns.reduce((sum, run) => sum + (run.totalEmployees || 0), 0);
-  const activeRuns = payrollRuns.filter(r => ['Calculating', 'UnderReview', 'Approved'].includes(r.status)).length;
-
   return (
     <div className="p-6 md:p-8 animate-fade-in max-w-[1600px] mx-auto">
       {/* Header with Gradient */}
@@ -148,7 +154,7 @@ export default function PayrollPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Total Disbursed</p>
-              <MoneyDisplay amount={totalAmount} className="text-2xl md:text-3xl font-bold truncate" />
+              <MoneyDisplay amount={summary.totalAmount} className="text-2xl md:text-3xl font-bold truncate" />
             </div>
             <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-4">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +171,7 @@ export default function PayrollPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Total Employees</p>
-              <div className="text-2xl md:text-3xl font-bold gradient-text-navy">{totalEmployees}</div>
+              <div className="text-2xl md:text-3xl font-bold gradient-text-navy">{summary.totalEmployees}</div>
             </div>
             <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-4">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +188,7 @@ export default function PayrollPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Active Runs</p>
-              <div className="text-2xl md:text-3xl font-bold gradient-text-navy">{activeRuns}</div>
+              <div className="text-2xl md:text-3xl font-bold gradient-text-navy">{summary.activeRuns}</div>
             </div>
             <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-4">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
