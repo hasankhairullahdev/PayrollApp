@@ -115,4 +115,101 @@ export const payrollApi = {
   },
 };
 
+// Employee Types
+export interface SalaryComponent {
+  componentId: string;
+  name: string;
+  amount: number;
+  type: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+}
+
+export interface Employee {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  email: string;
+  npwp?: string;
+  ptkpStatus: string;
+  joinDate: string;
+  resignDate?: string;
+  isActive: boolean;
+  salaryComponents: SalaryComponent[];
+}
+
+export interface EmployeesResponse {
+  items: Employee[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface CreateEmployeeRequest {
+  employeeCode: string;
+  fullName: string;
+  email: string;
+  npwp?: string;
+  ptkpStatus: string;
+  joinDate: string;
+  salaryComponents: Array<{
+    name: string;
+    amount: number;
+    type: string;
+    effectiveFrom: string;
+  }>;
+}
+
+export interface UpdateEmployeeRequest {
+  fullName: string;
+  email: string;
+  npwp?: string;
+  ptkpStatus: string;
+  salaryComponents: Array<{
+    name: string;
+    amount: number;
+    type: string;
+    effectiveFrom: string;
+  }>;
+}
+
+export interface DeactivateEmployeeRequest {
+  resignDate: string;
+}
+
+// Employee API Functions
+export const employeeApi = {
+  // Get list of employees
+  getEmployees: async (params?: {
+    isActive?: boolean;
+    page?: number;
+    pageSize?: number;
+  }): Promise<EmployeesResponse> => {
+    const response = await api.get('/api/employees', { params });
+    return response.data;
+  },
+
+  // Get employee by ID
+  getEmployeeById: async (id: string): Promise<Employee> => {
+    const response = await api.get(`/api/employees/${id}`);
+    return response.data;
+  },
+
+  // Create new employee
+  createEmployee: async (data: CreateEmployeeRequest): Promise<{ id: string }> => {
+    const response = await api.post('/api/employees', data);
+    return response.data;
+  },
+
+  // Update employee
+  updateEmployee: async (id: string, data: UpdateEmployeeRequest): Promise<void> => {
+    await api.put(`/api/employees/${id}`, data);
+  },
+
+  // Deactivate employee (resign)
+  deactivateEmployee: async (id: string, data: DeactivateEmployeeRequest): Promise<void> => {
+    await api.post(`/api/employees/${id}/deactivate`, data);
+  },
+};
+
 // Made with Bob
