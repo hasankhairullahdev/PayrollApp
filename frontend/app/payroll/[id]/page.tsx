@@ -45,6 +45,7 @@ export default function PayrollDetailPage() {
   const id = params.id as string;
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'line-items' | 'summary' | 'timeline'>('line-items');
+  const [searchQuery, setSearchQuery] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     action: 'approve' | 'lock' | null;
@@ -95,12 +96,31 @@ export default function PayrollDetailPage() {
   const canApprove = useMemo(() => payrollRun?.status === 'UnderReview', [payrollRun?.status]);
   const canLock = useMemo(() => payrollRun?.status === 'Approved', [payrollRun?.status]);
 
+  // Memoize filtered line items with search
+  const filteredLineItems = useMemo(() => {
+    if (!lineItems) return [];
+    if (!searchQuery) return lineItems;
+    
+    const query = searchQuery.toLowerCase();
+    return lineItems.filter(item =>
+      item.employeeName.toLowerCase().includes(query) ||
+      item.employeeCode.toLowerCase().includes(query) ||
+      item.employeeId.toLowerCase().includes(query)
+    );
+  }, [lineItems, searchQuery]);
+
   // Memoize calculations (rerender-memo)
   const totals = useMemo(() => ({
-    gross: lineItems?.reduce((sum, item) => sum + item.grossSalary, 0) || 0,
-    deductions: lineItems?.reduce((sum, item) =>
-      sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0) || 0,
-  }), [lineItems]);
+    gross: filteredLineItems.reduce((sum, item) => sum + item.grossSalary, 0),
+    deductions: filteredLineItems.reduce((sum, item) =>
+      sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0),
+    net: filteredLineItems.reduce((sum, item) => sum + item.takeHomePay, 0),
+    basicSalary: filteredLineItems.reduce((sum, item) => sum + item.basicSalary, 0),
+    allowances: filteredLineItems.reduce((sum, item) => sum + item.allowances, 0),
+    overtime: filteredLineItems.reduce((sum, item) => sum + item.overtime, 0),
+    bpjs: filteredLineItems.reduce((sum, item) => sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan, 0),
+    pph21: filteredLineItems.reduce((sum, item) => sum + item.pph21, 0),
+  }), [filteredLineItems]);
 
   // Stable callbacks (rerender-functional-setstate)
   const handleApprove = useCallback(() => {
@@ -117,7 +137,7 @@ export default function PayrollDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 animate-fade-in">
+      <div className="p-6 md:p-8 animate-fade-in">
         <div className="mb-10">
           <div className="h-12 w-80 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-2xl skeleton mb-4" />
           <div className="h-6 w-96 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-xl skeleton" />
@@ -147,7 +167,7 @@ export default function PayrollDetailPage() {
           <p className="text-[#64748B] mb-8">The requested payroll run does not exist</p>
           <button
             onClick={() => router.push('/payroll')}
-            className="btn-primary px-8 py-4 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl transition-all duration-300"
+            className="px-8 py-4 text-white bg-gradient-to-r from-teal-600 to-emerald-600 rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
           >
             Back to Payroll Runs
           </button>
@@ -157,13 +177,13 @@ export default function PayrollDetailPage() {
   }
 
   return (
-    <div className="p-8 animate-fade-in max-w-[1800px] mx-auto">
-      {/* Premium Back Button */}
+    <div className="p-6 md:p-8 animate-fade-in max-w-[1800px] mx-auto">
+      {/* Back Button */}
       <button
         onClick={() => router.push('/payroll')}
         className="mb-8 flex items-center gap-3 text-[#64748B] hover:text-[#0F172A] transition-all duration-300 group"
       >
-        <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur flex items-center justify-center group-hover:bg-gradient-to-r group-hover:from-cyan-500 group-hover:to-purple-500 transition-all duration-300 shadow-md">
+        <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur flex items-center justify-center group-hover:bg-gradient-to-r group-hover:from-teal-500 group-hover:to-emerald-500 transition-all duration-300 shadow-md">
           <svg className="w-5 h-5 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
@@ -171,15 +191,15 @@ export default function PayrollDetailPage() {
         <span className="text-sm font-semibold">Back to Payroll Runs</span>
       </button>
 
-      {/* Premium Header */}
+      {/* Header */}
       <div className="mb-10">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6 mb-8">
           <div className="animate-slide-in">
-            <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-3 tracking-tight">
+            <h1 className="text-4xl md:text-5xl font-bold mb-3 tracking-tight bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
               <PayrollPeriodDisplay month={payrollRun.month} year={payrollRun.year} />
             </h1>
             <p className="text-[#64748B] text-lg flex items-center gap-2">
-              <span className="w-2 h-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full animate-pulse-glow" />
+              <span className="w-2 h-2 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full animate-pulse-glow" />
               Created by <span className="font-semibold text-[#0F172A]">{payrollRun.createdBy}</span> on{' '}
               {new Date(payrollRun.createdAt).toLocaleDateString('id-ID', {
                 day: 'numeric',
@@ -216,52 +236,60 @@ export default function PayrollDetailPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 hover-lift">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[#64748B]">Status</span>
-              <div className="w-10 h-10 bg-gradient-to-br from-[#0D9488] to-[#14B8A6] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-3xl p-6 hover-lift">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Status</p>
+                <StatusBadge status={payrollRun.status} />
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <StatusBadge status={payrollRun.status} />
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 hover-lift">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[#64748B]">Employees</span>
-              <div className="w-10 h-10 bg-gradient-to-br from-[#F59E0B] to-[#FCD34D] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-3xl p-6 hover-lift">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Employees</p>
+                <div className="text-2xl md:text-3xl font-bold gradient-text-navy">{lineItems?.length || 0}</div>
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
             </div>
-            <div className="text-2xl font-bold text-[#1E3A5F]">{lineItems?.length || 0}</div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 hover-lift">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[#64748B]">Gross Amount</span>
-              <div className="w-10 h-10 bg-gradient-to-br from-[#1E3A5F] to-[#2D5278] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-3xl p-6 hover-lift">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Gross Amount</p>
+                <MoneyDisplay amount={totals.gross} className="text-xl md:text-2xl font-bold truncate" />
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <MoneyDisplay amount={totals.gross} className="text-xl font-bold text-[#1E3A5F]" />
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 hover-lift">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[#64748B]">Net Amount</span>
-              <div className="w-10 h-10 bg-gradient-to-br from-[#059669] to-[#10B981] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-3xl p-6 hover-lift">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Net Amount</p>
+                <MoneyDisplay amount={payrollRun.totalAmount} className="text-xl md:text-2xl font-bold truncate" />
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
             </div>
-            <MoneyDisplay amount={payrollRun.totalAmount} className="text-xl font-bold text-[#1E3A5F]" />
           </div>
         </div>
       </div>
@@ -280,7 +308,7 @@ export default function PayrollDetailPage() {
               className={`
                 group py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200
                 ${activeTab === tab.id
-                  ? 'border-[#0D9488] text-[#0D9488]'
+                  ? 'border-teal-600 text-teal-600'
                   : 'border-transparent text-[#64748B] hover:text-[#1E3A5F] hover:border-gray-300'
                 }
               `}
@@ -296,115 +324,144 @@ export default function PayrollDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'line-items' && (
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="bg-gradient-to-r from-[#1E3A5F] to-[#2D5278] text-white">
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider sticky left-0 bg-[#1E3A5F]">
-                    Employee
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    Basic Salary
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    Allowances
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    Overtime
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    Gross
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    BPJS
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    PPh 21
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
-                    Net Salary
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {lineItems && lineItems.length > 0 ? (
-                  lineItems.map((item, index) => (
-                    <tr 
-                      key={item.employeeId} 
-                      className="hover:bg-[#F8FAFC] transition-colors duration-150"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white hover:bg-[#F8FAFC]">
-                        <div className="text-sm font-semibold text-[#1E3A5F]">{item.employeeName}</div>
-                        <div className="text-xs text-[#64748B] font-mono">{item.employeeId}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.basicSalary} className="text-sm text-[#1E3A5F]" />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.allowances} className="text-sm text-[#1E3A5F]" />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.overtime} className="text-sm text-[#1E3A5F]" />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.grossSalary} className="text-sm font-semibold text-[#1E3A5F]" />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.bpjsKesehatan + item.bpjsKetenagakerjaan} className="text-sm text-red-600" />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.pph21} className="text-sm text-red-600" />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.takeHomePay} className="text-sm font-bold text-[#059669]" />
+        <div className="space-y-6">
+          {/* Search Bar */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by employee name, code, or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-5 py-4 pl-12 bg-white border-2 border-gray-200 rounded-2xl text-[#1E3A5F] placeholder-[#94A3B8] focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all"
+            />
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B] transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="card-premium rounded-3xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider sticky left-0 bg-teal-600">
+                      Employee
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      Basic Salary
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      Allowances
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      Overtime
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      Gross
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      BPJS
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      PPh 21
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
+                      Net Salary
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredLineItems && filteredLineItems.length > 0 ? (
+                    filteredLineItems.map((item) => (
+                      <tr 
+                        key={item.employeeId} 
+                        className="hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-emerald-50/50 transition-colors duration-150"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-emerald-50/50">
+                          <div className="text-sm font-semibold text-[#1E3A5F]">{item.employeeName}</div>
+                          <div className="text-xs text-[#64748B] font-mono">{item.employeeCode}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.basicSalary} className="text-sm text-[#1E3A5F]" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.allowances} className="text-sm text-[#1E3A5F]" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.overtime} className="text-sm text-[#1E3A5F]" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.grossSalary} className="text-sm font-semibold text-[#1E3A5F]" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.bpjsKesehatan + item.bpjsKetenagakerjaan} className="text-sm text-red-600" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.pph21} className="text-sm text-red-600" />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <MoneyDisplay amount={item.takeHomePay} className="text-sm font-bold text-emerald-600" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-[#64748B]">
+                        {searchQuery ? 'No employees found matching your search' : 'No line items available'}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-[#64748B]">
-                      No line items available
-                    </td>
-                  </tr>
+                  )}
+                </tbody>
+                {filteredLineItems && filteredLineItems.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 font-semibold">
+                      <td className="px-6 py-4 text-sm text-[#1E3A5F]">
+                        Total {searchQuery && `(${filteredLineItems.length} of ${lineItems?.length})`}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.basicSalary} className="text-sm text-[#1E3A5F]" />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.allowances} className="text-sm text-[#1E3A5F]" />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.overtime} className="text-sm text-[#1E3A5F]" />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.gross} className="text-sm font-bold text-[#1E3A5F]" />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.bpjs} className="text-sm text-red-600" />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.pph21} className="text-sm text-red-600" />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <MoneyDisplay amount={totals.net} className="text-sm font-bold text-emerald-600" />
+                      </td>
+                    </tr>
+                  </tfoot>
                 )}
-              </tbody>
-              {lineItems && lineItems.length > 0 && (
-                <tfoot>
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="px-6 py-4 text-sm text-[#1E3A5F]">Total</td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.basicSalary, 0)} className="text-sm text-[#1E3A5F]" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.allowances, 0)} className="text-sm text-[#1E3A5F]" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.overtime, 0)} className="text-sm text-[#1E3A5F]" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={totals.gross} className="text-sm font-bold text-[#1E3A5F]" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan, 0)} className="text-sm text-red-600" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.pph21, 0)} className="text-sm text-red-600" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={payrollRun.totalAmount} className="text-sm font-bold text-[#059669]" />
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {activeTab === 'summary' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+          <div className="card-premium rounded-3xl p-6">
             <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -424,14 +481,14 @@ export default function PayrollDetailPage() {
                 <span className="text-sm text-[#64748B]">Total Deductions</span>
                 <MoneyDisplay amount={totals.deductions} className="font-semibold text-red-600" />
               </div>
-              <div className="flex justify-between items-center py-3 bg-[#F8FAFC] -mx-6 px-6 rounded-lg">
+              <div className="flex justify-between items-center py-3 bg-gradient-to-r from-teal-50 to-emerald-50 -mx-6 px-6 rounded-lg">
                 <span className="text-sm font-semibold text-[#1E3A5F]">Net Amount</span>
-                <MoneyDisplay amount={payrollRun.totalAmount} className="font-bold text-lg text-[#059669]" />
+                <MoneyDisplay amount={payrollRun.totalAmount} className="font-bold text-lg text-emerald-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+          <div className="card-premium rounded-3xl p-6">
             <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -481,7 +538,7 @@ export default function PayrollDetailPage() {
       )}
 
       {activeTab === 'timeline' && (
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 p-8">
+        <div className="card-premium rounded-3xl p-8">
           <h3 className="text-lg font-semibold text-[#1E3A5F] mb-6 flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -490,7 +547,7 @@ export default function PayrollDetailPage() {
           </h3>
           <div className="space-y-6 relative before:absolute before:left-[11px] before:top-[20px] before:bottom-[20px] before:w-0.5 before:bg-gray-200">
             <div className="flex gap-4 relative">
-              <div className="flex-shrink-0 w-6 h-6 bg-[#0D9488] rounded-full flex items-center justify-center z-10 shadow-md">
+              <div className="flex-shrink-0 w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center z-10 shadow-md">
                 <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
@@ -512,7 +569,7 @@ export default function PayrollDetailPage() {
 
             {payrollRun.approvedAt && (
               <div className="flex gap-4 relative">
-                <div className="flex-shrink-0 w-6 h-6 bg-[#059669] rounded-full flex items-center justify-center z-10 shadow-md">
+                <div className="flex-shrink-0 w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center z-10 shadow-md">
                   <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -535,7 +592,7 @@ export default function PayrollDetailPage() {
 
             {payrollRun.lockedAt && (
               <div className="flex gap-4 relative">
-                <div className="flex-shrink-0 w-6 h-6 bg-[#1E3A5F] rounded-full flex items-center justify-center z-10 shadow-md">
+                <div className="flex-shrink-0 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center z-10 shadow-md">
                   <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                   </svg>
