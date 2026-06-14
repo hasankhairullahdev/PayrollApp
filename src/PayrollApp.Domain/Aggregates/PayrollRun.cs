@@ -60,7 +60,9 @@ public partial class PayrollRun
             throw new InvalidPayrollStateException(
                 $"Cannot start calculation. Payroll must be in Draft status, current status: {Status}");
 
-        Status = PayrollStatus.Calculating;
+        // Raise event instead of directly setting status
+        var @event = new PayrollCalculationStarted(Id, DateTime.UtcNow);
+        RaiseEvent(@event);
     }
 
     public void MarkCalculated(List<PayrollLineItem> lineItems, decimal totalAmount)
@@ -241,6 +243,9 @@ public partial class PayrollRun
             case PayrollRunCreated e:
                 Apply(e);
                 break;
+            case PayrollCalculationStarted e:
+                Apply(e);
+                break;
             case PayrollCalculated e:
                 Apply(e);
                 break;
@@ -274,6 +279,11 @@ public partial class PayrollRun
         Status = PayrollStatus.Draft;
         CreatedBy = e.CreatedBy;
         CreatedAt = e.CreatedAt;
+    }
+
+    public void Apply(PayrollCalculationStarted e)
+    {
+        Status = PayrollStatus.Calculating;
     }
 
     public void Apply(PayrollCalculated e)

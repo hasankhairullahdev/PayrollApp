@@ -1,11 +1,20 @@
 using FluentValidation;
+using Marten;
+using PayrollApp.Api;
 using PayrollApp.Api.Endpoints;
 using PayrollApp.Application.Behaviors;
 using PayrollApp.Engine;
 using PayrollApp.Infrastructure.EventStore;
 using PayrollApp.Infrastructure.Jobs;
+using PayrollApp.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure JSON options to serialize enums as strings
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
@@ -47,6 +56,9 @@ builder.Services.AddValidatorsFromAssembly(typeof(PayrollApp.Application.Common.
 // Note: Calculation Engine classes (PPh21Calculator, BPJSCalculator, etc.) are static
 // No need to register them in DI container
 
+// Add Repositories
+builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+
 // Add Background Jobs
 builder.Services.AddScoped<PayrollCalculationJob>();
 builder.Services.AddScoped<PayslipGenerationJob>();
@@ -64,6 +76,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Seed initial data
+using (var scope = app.Services.CreateScope())
+{
+    var documentStore = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+    await SeedData.SeedEmployeesAsync(documentStore);
+}
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
@@ -83,6 +102,7 @@ app.UseHangfireDashboardWithAuth();
 // Map endpoints
 app.MapPayrollEndpoints();
 app.MapReportEndpoints();
+app.MapEmployeeEndpoints();
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new

@@ -39,13 +39,18 @@ export function Sidebar() {
   return (
     <>
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`
           fixed left-0 top-0 bottom-0 z-40
-          ${isCollapsed ? 'w-20' : 'w-72'} 
-          bg-gradient-to-b from-[#1E3A5F] via-[#1a3352] to-[#152B47] 
+          ${isCollapsed ? 'w-20' : 'w-72'}
+          bg-gradient-to-b from-[#1E3A5F] via-[#1a3352] to-[#152B47]
           text-white shadow-2xl transition-all duration-300 ease-in-out
         `}
+        style={{
+          backgroundImage: 'linear-gradient(rgba(30, 58, 95, 0.85), rgba(21, 43, 71, 0.88)), url(/Building.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
       >
         {/* Logo Section */}
         <div className={`p-6 border-b border-white/10 ${isCollapsed ? 'px-4' : ''}`}>
@@ -126,7 +131,8 @@ export function Sidebar() {
         {/* Collapse Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center text-[#1E3A5F] hover:bg-[#0D9488] hover:text-white transition-all duration-200 z-50"
+          className="fixed -right-3 top-20 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center text-[#1E3A5F] hover:bg-[#0D9488] hover:text-white transition-all duration-200 z-50"
+          style={{ left: isCollapsed ? '68px' : '276px' }}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <svg 

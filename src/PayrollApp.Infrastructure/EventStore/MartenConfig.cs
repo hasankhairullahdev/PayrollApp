@@ -17,6 +17,7 @@ public static class MartenConfig
             
             // Register domain events
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollRunCreated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculationStarted>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculated>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollReviewStarted>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollApproved>();

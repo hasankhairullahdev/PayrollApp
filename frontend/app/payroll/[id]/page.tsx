@@ -26,16 +26,17 @@ interface PayrollRunDetail {
 
 interface LineItem {
   employeeId: string;
+  employeeCode: string;
   employeeName: string;
   basicSalary: number;
   allowances: number;
   overtime: number;
   grossSalary: number;
   bpjsKesehatan: number;
-  bpjsTk: number;
+  bpjsKetenagakerjaan: number;
   pph21: number;
-  totalDeductions: number;
-  netSalary: number;
+  deductions: number;
+  takeHomePay: number;
 }
 
 export default function PayrollDetailPage() {
@@ -93,15 +94,15 @@ export default function PayrollDetailPage() {
   if (isLoading) {
     return (
       <div className="p-8 animate-fade-in">
-        <div className="mb-8">
-          <div className="h-8 w-64 bg-gray-200 rounded skeleton mb-2" />
-          <div className="h-4 w-96 bg-gray-200 rounded skeleton" />
+        <div className="mb-10">
+          <div className="h-12 w-80 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-2xl skeleton mb-4" />
+          <div className="h-6 w-96 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-xl skeleton" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-6 shadow-md">
-              <div className="h-4 w-24 bg-gray-200 rounded skeleton mb-3" />
-              <div className="h-10 w-32 bg-gray-200 rounded skeleton" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="card-premium rounded-3xl p-8 animate-pulse">
+              <div className="h-6 w-24 bg-gradient-to-r from-gray-200 to-gray-100 rounded-xl skeleton mb-4" />
+              <div className="h-12 w-32 bg-gradient-to-r from-gray-200 to-gray-100 rounded-2xl skeleton" />
             </div>
           ))}
         </div>
@@ -112,17 +113,17 @@ export default function PayrollDetailPage() {
   if (!payrollRun) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)] animate-fade-in">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center animate-scale-in">
+          <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-red-50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl animate-float">
+            <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-[#1E3A5F] mb-2">Payroll Run Not Found</h3>
-          <p className="text-sm text-[#64748B] mb-4">The requested payroll run does not exist</p>
+          <h3 className="text-2xl font-bold gradient-text-navy mb-3">Payroll Run Not Found</h3>
+          <p className="text-[#64748B] mb-8">The requested payroll run does not exist</p>
           <button
             onClick={() => router.push('/payroll')}
-            className="px-4 py-2 bg-[#0D9488] text-white rounded-lg text-sm font-medium hover:bg-[#0F766E] transition-colors"
+            className="btn-primary px-8 py-4 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl transition-all duration-300"
           >
             Back to Payroll Runs
           </button>
@@ -135,30 +136,34 @@ export default function PayrollDetailPage() {
   const canLock = payrollRun.status === 'Approved';
 
   const totalGross = lineItems?.reduce((sum, item) => sum + item.grossSalary, 0) || 0;
-  const totalDeductions = lineItems?.reduce((sum, item) => sum + item.totalDeductions, 0) || 0;
+  const totalDeductions = lineItems?.reduce((sum, item) =>
+    sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21, 0) || 0;
 
   return (
-    <div className="p-8 animate-fade-in">
-      {/* Back Button */}
+    <div className="p-8 animate-fade-in max-w-[1800px] mx-auto">
+      {/* Premium Back Button */}
       <button
         onClick={() => router.push('/payroll')}
-        className="mb-6 flex items-center gap-2 text-[#64748B] hover:text-[#1E3A5F] transition-colors"
+        className="mb-8 flex items-center gap-3 text-[#64748B] hover:text-[#0F172A] transition-all duration-300 group"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        <span className="text-sm font-medium">Back to Payroll Runs</span>
+        <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur flex items-center justify-center group-hover:bg-gradient-to-r group-hover:from-cyan-500 group-hover:to-purple-500 transition-all duration-300 shadow-md">
+          <svg className="w-5 h-5 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          </svg>
+        </div>
+        <span className="text-sm font-semibold">Back to Payroll Runs</span>
       </button>
 
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2 tracking-tight">
+      {/* Premium Header */}
+      <div className="mb-10">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6 mb-8">
+          <div className="animate-slide-in">
+            <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-3 tracking-tight">
               <PayrollPeriodDisplay month={payrollRun.month} year={payrollRun.year} />
             </h1>
-            <p className="text-[#64748B]">
-              Created by <span className="font-medium text-[#1E3A5F]">{payrollRun.createdBy}</span> on{' '}
+            <p className="text-[#64748B] text-lg flex items-center gap-2">
+              <span className="w-2 h-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full animate-pulse-glow" />
+              Created by <span className="font-semibold text-[#0F172A]">{payrollRun.createdBy}</span> on{' '}
               {new Date(payrollRun.createdAt).toLocaleDateString('id-ID', {
                 day: 'numeric',
                 month: 'long',
@@ -166,14 +171,14 @@ export default function PayrollDetailPage() {
               })}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-4 animate-slide-in" style={{ animationDelay: '100ms' }}>
             {canApprove && (
               <button
                 onClick={() => setConfirmDialog({ isOpen: true, action: 'approve' })}
-                className="px-6 py-3 bg-gradient-to-r from-[#059669] to-[#10B981] text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Approve Payroll
               </button>
@@ -181,10 +186,10 @@ export default function PayrollDetailPage() {
             {canLock && (
               <button
                 onClick={() => setConfirmDialog({ isOpen: true, action: 'lock' })}
-                className="px-6 py-3 bg-gradient-to-r from-[#1E3A5F] to-[#2D5278] text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="px-8 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 Lock Payroll
               </button>
@@ -215,7 +220,7 @@ export default function PayrollDetailPage() {
                 </svg>
               </div>
             </div>
-            <div className="text-2xl font-bold text-[#1E3A5F]">{payrollRun.employeeCount}</div>
+            <div className="text-2xl font-bold text-[#1E3A5F]">{lineItems?.length || 0}</div>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 hover-lift">
@@ -329,13 +334,13 @@ export default function PayrollDetailPage() {
                         <MoneyDisplay amount={item.grossSalary} className="text-sm font-semibold text-[#1E3A5F]" />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.bpjsKesehatan + item.bpjsTk} className="text-sm text-red-600" />
+                        <MoneyDisplay amount={item.bpjsKesehatan + item.bpjsKetenagakerjaan} className="text-sm text-red-600" />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <MoneyDisplay amount={item.pph21} className="text-sm text-red-600" />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <MoneyDisplay amount={item.netSalary} className="text-sm font-bold text-[#059669]" />
+                        <MoneyDisplay amount={item.takeHomePay} className="text-sm font-bold text-[#059669]" />
                       </td>
                     </tr>
                   ))
@@ -364,7 +369,7 @@ export default function PayrollDetailPage() {
                       <MoneyDisplay amount={totalGross} className="text-sm font-bold text-[#1E3A5F]" />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.bpjsKesehatan + item.bpjsTk, 0)} className="text-sm text-red-600" />
+                      <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.bpjsKesehatan + item.bpjsKetenagakerjaan, 0)} className="text-sm text-red-600" />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <MoneyDisplay amount={lineItems.reduce((sum, item) => sum + item.pph21, 0)} className="text-sm text-red-600" />
