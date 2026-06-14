@@ -77,8 +77,8 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
       <div className="card-premium rounded-3xl shadow-2xl max-w-md w-full animate-scale-in overflow-hidden">
-        {/* Header with Gradient */}
-        <div className="bg-gradient-to-r from-cyan-500 to-purple-500 p-8 text-white">
+        {/* Header with Gradient - Match Employee Dialog */}
+        <div className="bg-gradient-to-r from-teal-600 to-emerald-600 p-8 text-white">
           <div className="flex items-center gap-4 mb-2">
             <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +105,7 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
                   id="month"
                   value={month}
                   onChange={(e) => setMonth(Number(e.target.value))}
-                  className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-[#1E3A5F] font-medium focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all appearance-none cursor-pointer"
+                  className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-[#1E3A5F] font-medium focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all appearance-none cursor-pointer"
                   required
                   disabled={createMutation.isPending}
                 >
@@ -133,7 +133,7 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
                   id="year"
                   value={year}
                   onChange={(e) => setYear(Number(e.target.value))}
-                  className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-[#1E3A5F] font-medium focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all appearance-none cursor-pointer"
+                  className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-[#1E3A5F] font-medium focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all appearance-none cursor-pointer"
                   required
                   disabled={createMutation.isPending}
                 >
@@ -164,9 +164,9 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
             )}
 
             {/* Info Box */}
-            <div className="p-4 bg-gradient-to-r from-cyan-50 to-purple-50 border-2 border-cyan-100 rounded-xl">
+            <div className="p-4 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-100 rounded-xl">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-[#1E3A5F]">
@@ -189,7 +189,7 @@ export function CreatePayrollRunDialog({ isOpen, onClose }: CreatePayrollRunDial
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center gap-2"
+              className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-teal-600 to-emerald-600 rounded-xl hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center gap-2"
             >
               {createMutation.isPending ? (
                 <>
