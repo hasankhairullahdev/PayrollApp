@@ -33,7 +33,9 @@ export default function PayrollPage() {
       const response = await api.get<{ items: PayrollRun[]; totalCount: number }>(`/api/payroll${params}`);
       return response.data;
     },
-    refetchInterval: 5000,
+    staleTime: 5 * 60 * 1000, // Data dianggap fresh selama 5 menit
+    refetchOnWindowFocus: false, // Tidak refetch saat window focus
+    refetchOnMount: false, // Tidak refetch saat component mount jika data masih fresh
   });
 
   // Memoize filtered and sorted data (rerender-memo)
@@ -262,9 +264,10 @@ export default function PayrollPage() {
               { value: 'Approved', label: 'Approved', color: 'from-emerald-500 to-emerald-600' },
               { value: 'Locked', label: 'Locked', color: 'from-purple-500 to-purple-600' },
             ].map((status) => {
+              // Count dari allPayrollRuns (tanpa filter year/search), hanya filter status
               const count = status.value === 'all'
-                ? payrollRuns.length
-                : payrollRuns.filter(r => r.status === status.value).length;
+                ? allPayrollRuns.length
+                : allPayrollRuns.filter(r => r.status === status.value).length;
               
               return (
                 <button

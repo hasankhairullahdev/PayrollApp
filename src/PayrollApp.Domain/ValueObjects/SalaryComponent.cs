@@ -5,10 +5,15 @@ namespace PayrollApp.Domain.ValueObjects;
 public record SalaryComponent
 {
     public Guid ComponentId { get; init; }
-    public string Name { get; init; }
-    public Money Amount { get; init; }
+    public string Name { get; init; } = null!;
+    public Money Amount { get; init; } = null!;
     public SalaryComponentType Type { get; init; }
     public DateOnly EffectiveDate { get; init; }
+
+    // Parameterless constructor for Marten deserialization
+    public SalaryComponent()
+    {
+    }
 
     public SalaryComponent(
         Guid componentId,

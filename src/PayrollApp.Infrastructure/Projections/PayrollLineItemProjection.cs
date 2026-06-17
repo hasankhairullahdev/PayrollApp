@@ -1,3 +1,4 @@
+using Marten;
 using Marten.Events.Projections;
 using PayrollApp.Domain.Events;
 using PayrollApp.Infrastructure.ReadModels;
@@ -5,24 +6,23 @@ using PayrollApp.Infrastructure.ReadModels;
 namespace PayrollApp.Infrastructure.Projections;
 
 /// <summary>
-/// Projection untuk PayrollLineItem read model.
+/// Event projection untuk PayrollLineItem read model.
 /// Diupdate saat PayrollCalculated event.
+/// MUST be partial for Marten 9.x source generator
 /// </summary>
 public partial class PayrollLineItemProjection : EventProjection
 {
     // Create line items dari PayrollCalculated event
-    public IEnumerable<ReadModels.PayrollLineItem> Transform(PayrollCalculated @event)
+    public void Project(PayrollCalculated @event, IDocumentOperations ops)
     {
-        var lineItems = new List<ReadModels.PayrollLineItem>();
-
         foreach (var item in @event.LineItems)
         {
             var lineItem = new ReadModels.PayrollLineItem
             {
                 Id = Guid.NewGuid(),
                 PayrollRunId = @event.PayrollRunId,
-                EmployeeId = Guid.Parse(item.EmployeeId),
-                EmployeeCode = item.EmployeeId, // Use EmployeeId as code for now
+                EmployeeId = item.EmployeeId,
+                EmployeeCode = item.EmployeeCode,
                 EmployeeName = item.EmployeeName,
                 
                 // Salary components
@@ -51,10 +51,8 @@ public partial class PayrollLineItemProjection : EventProjection
                 CalculatedAt = @event.CalculatedAt
             };
 
-            lineItems.Add(lineItem);
+            ops.Store(lineItem);
         }
-
-        return lineItems;
     }
 }
 

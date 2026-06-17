@@ -78,6 +78,15 @@ export interface LockPayrollRequest {
   lockedBy: string;
 }
 
+export interface StartReviewRequest {
+  reviewedBy: string;
+}
+
+export interface RejectPayrollRequest {
+  rejectedBy: string;
+  reason: string;
+}
+
 // API Functions
 export const payrollApi = {
   // Get list of payroll runs
@@ -113,7 +122,61 @@ export const payrollApi = {
   lockPayrollRun: async (id: string, data: LockPayrollRequest): Promise<void> => {
     await api.post(`/api/payroll/${id}/lock`, data);
   },
+
+  // Start review payroll run
+  startReviewPayrollRun: async (id: string, data: StartReviewRequest): Promise<void> => {
+    await api.post(`/api/payroll/${id}/start-review`, data);
+  },
+
+  // Reject payroll run
+  rejectPayrollRun: async (id: string, data: RejectPayrollRequest): Promise<void> => {
+    await api.post(`/api/payroll/${id}/reject`, data);
+  },
+
+  // Download payslip PDF for specific employee
+  downloadPayslipPdf: async (payrollRunId: string, employeeId: string): Promise<Blob> => {
+    const response = await api.get(`/api/reports/payroll/${payrollRunId}/payslip/${employeeId}/pdf`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Export payroll to Excel
+  exportPayrollExcel: async (payrollRunId: string): Promise<Blob> => {
+    const response = await api.get(`/api/reports/payroll/${payrollRunId}/export/excel`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Generate bank file
+  generateBankFile: async (payrollRunId: string, bank: string, companyId?: string): Promise<Blob> => {
+    const params = new URLSearchParams({ bank });
+    if (companyId) params.append('companyId', companyId);
+    
+    const response = await api.get(`/api/reports/payroll/${payrollRunId}/bank-file?${params.toString()}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Get payroll events (timeline)
+  getPayrollEvents: async (payrollRunId: string): Promise<PayrollEvent[]> => {
+    const response = await api.get(`/api/events/payroll/${payrollRunId}`);
+    return response.data;
+  },
 };
+
+// Event Types
+export interface PayrollEvent {
+  id: string;
+  streamId: string;
+  version: number;
+  sequence: number;
+  eventType: string;
+  timestamp: string;
+  data: any;
+}
 
 // Employee Types
 export interface SalaryComponent {

@@ -3,7 +3,12 @@ namespace PayrollApp.Domain.ValueObjects;
 public record Money
 {
     public decimal Amount { get; init; }
-    public string Currency { get; init; }
+    public string Currency { get; init; } = "IDR";
+
+    // Parameterless constructor for Marten deserialization
+    public Money()
+    {
+    }
 
     public Money(decimal amount, string currency = "IDR")
     {

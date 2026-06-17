@@ -15,6 +15,15 @@ public static class MartenConfig
             // Connection string
             opts.Connection(connectionString);
             
+            // Configure Employee document to properly handle nested collections
+            opts.Schema.For<PayrollApp.Domain.Aggregates.Employee>()
+                .UseOptimisticConcurrency(true);
+            
+            // Register document types
+            opts.RegisterDocumentType<PayrollApp.Domain.Aggregates.Employee>();
+            opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.PayrollRunSummary>();
+            opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.PayrollLineItem>();
+            
             // Register domain events
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollRunCreated>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculationStarted>();
@@ -29,7 +38,7 @@ public static class MartenConfig
             
             // Register projections - Inline for strong consistency
             opts.Projections.Add<PayrollRunSummaryProjection>(ProjectionLifecycle.Inline);
-            // Note: PayrollLineItem disimpan langsung di job, bukan via projection
+            opts.Projections.Add<PayrollLineItemProjection>(ProjectionLifecycle.Inline);
             
             // Database schema name
             opts.Events.DatabaseSchemaName = "payroll_events";

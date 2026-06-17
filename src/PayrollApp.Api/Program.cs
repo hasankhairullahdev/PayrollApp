@@ -103,6 +103,7 @@ app.UseHangfireDashboardWithAuth();
 app.MapPayrollEndpoints();
 app.MapReportEndpoints();
 app.MapEmployeeEndpoints();
+app.MapEventEndpoints();
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new

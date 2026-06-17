@@ -19,6 +19,7 @@ Enterprise payroll application untuk mengelola penggajian karyawan secara end-to
 - **Tailwind CSS** - Styling
 - **Shadcn/ui** - UI components
 - **TanStack Query** - Server state management
+- **Recharts** - Data visualization
 - **React Hook Form** - Form handling
 - **Zod** - Schema validation
 
@@ -56,34 +57,75 @@ Project ini menggunakan **Clean Architecture** dengan **CQRS** dan **Event Sourc
 
 ## Key Features
 
-### 1. Payroll Processing
-- Create payroll run per period (bulan + tahun)
-- Automatic calculation via background job
-- Support prorate untuk karyawan baru/resign
-- Overtime calculation
-- Multi-component salary (gaji pokok, tunjangan, bonus, dll)
+### 1. Employee Management
+- ✅ Full CRUD operations with validation
+- ✅ Multi-component salary setup (Basic, Allowances, Overtime)
+- ✅ PTKP status configuration (TK/0, K/1, K/2, K/3)
+- ✅ NPWP management
+- ✅ Join/Resign date tracking
+- ✅ Search, filter, and pagination
+- ✅ Active/Inactive status
 
-### 2. Tax & BPJS Calculation
-- **PPh 21** menggunakan Tarif Efektif Rata-rata (TER) 2024
-- **BPJS Kesehatan**: Karyawan 1%, Perusahaan 4%
-- **BPJS Ketenagakerjaan**: JHT, JP, JKK, JKM
-- Automatic PTKP calculation based on marital status
+### 2. Payroll Processing
+- ✅ Create payroll run per period (month + year)
+- ✅ Automatic calculation via Hangfire background job
+- ✅ Support prorate untuk karyawan baru/resign
+- ✅ Overtime calculation
+- ✅ Multi-component salary aggregation
+- ✅ Duplicate period prevention
 
-### 3. Approval Workflow
+### 3. Tax & BPJS Calculation
+- ✅ **PPh 21** menggunakan Tarif Efektif Rata-rata (TER) 2024
+- ✅ **BPJS Kesehatan**: Karyawan 1%, Perusahaan 4% (cap Rp 12jt)
+- ✅ **BPJS Ketenagakerjaan**: JHT (2%+3.7%), JP (1%+2%), JKK (0.24%), JKM (0.3%)
+- ✅ Automatic PTKP calculation based on marital status
+- ✅ NPWP status handling (20% higher rate for non-NPWP)
+
+### 4. Approval Workflow
 ```
 Draft → Calculating → Calculated → UnderReview → Approved → Locked → Disbursed
+         (auto)        (manual)      (manual)     (manual)   (auto)
 ```
 
-### 4. Document Generation
-- **PDF Payslip** per employee (QuestPDF) - professional layout
-- **Excel Export** dengan 3 sheets: Summary, BPJS, PPh 21
-- **Bank File Generation** untuk 4 bank: BCA, Mandiri, BNI, Permata
+**State Transitions:**
+- **Start Review**: Calculated → UnderReview
+- **Approve**: UnderReview → Approved (with notes)
+- **Reject**: UnderReview → Draft (with reason)
+- **Lock**: Approved → Locked (triggers payslip generation)
 
-### 5. Event Sourcing
-- Full audit trail via event store
-- Aggregate reconstruction dari events
-- Optimistic concurrency control
-- Read models via Marten projections
+### 5. Document Generation
+- ✅ **PDF Payslip** per employee (QuestPDF)
+  - Professional layout with company header
+  - Detailed income & deduction breakdown
+  - Digital signature ready
+- ✅ **Excel Export** dengan 3 sheets:
+  - Summary: Full payroll breakdown
+  - BPJS: BPJS Kesehatan & Ketenagakerjaan recap
+  - PPh 21: Tax calculation summary
+- ✅ **Bank File Generation** untuk 4 bank:
+  - BCA: Fixed-width format
+  - Mandiri: CSV format
+  - BNI: Pipe-delimited format
+  - Permata: Tab-delimited format
+
+### 6. Event Sourcing & Audit Trail
+- ✅ Full audit trail via Marten event store
+- ✅ Aggregate reconstruction dari events
+- ✅ Optimistic concurrency control
+- ✅ Read models via projections
+- ✅ Event timeline visualization in UI
+- ✅ Version tracking per event
+
+### 7. Rich UI Features
+- ✅ **Payroll List**: Status badges, period display, filters
+- ✅ **Payroll Detail** with 3 tabs:
+  - **Line Items**: Employee salary breakdown table with search
+  - **Summary**: Financial summary + 3 interactive pie charts
+  - **Timeline**: Event history with icons and timestamps
+- ✅ **Action Buttons**: Contextual based on status
+- ✅ **Download Features**: PDF, Excel, Bank files
+- ✅ **Responsive Design**: Mobile to desktop
+- ✅ **Real-time Updates**: TanStack Query with optimistic updates
 
 ## Project Structure
 
@@ -209,12 +251,23 @@ Frontend akan berjalan di `http://localhost:3000`
 
 ### Payroll Management
 ```
-POST   /api/payroll                    # Create payroll run
-GET    /api/payroll                    # List payroll runs (with status filter)
-GET    /api/payroll/{id}               # Get payroll run detail
-POST   /api/payroll/{id}/approve       # Approve payroll
-POST   /api/payroll/{id}/lock          # Lock payroll
-GET    /api/payroll/{id}/line-items    # Get line items
+POST   /api/payroll                         # Create payroll run
+GET    /api/payroll                         # List payroll runs (with status filter)
+GET    /api/payroll/{id}                    # Get payroll run detail
+GET    /api/payroll/{id}/line-items         # Get line items
+POST   /api/payroll/{id}/start-review       # Start review process
+POST   /api/payroll/{id}/approve            # Approve payroll
+POST   /api/payroll/{id}/reject             # Reject payroll (back to Draft)
+POST   /api/payroll/{id}/lock               # Lock payroll & generate payslips
+```
+
+### Employee Management
+```
+GET    /api/employees                       # List employees (with pagination & filters)
+POST   /api/employees                       # Create new employee
+GET    /api/employees/{id}                  # Get employee detail
+PUT    /api/employees/{id}                  # Update employee
+DELETE /api/employees/{id}                  # Delete employee
 ```
 
 ### Reports & Export
@@ -226,14 +279,19 @@ GET    /api/reports/payroll/{id}/bank-file?bank=bca         # Generate bank file
 
 Supported banks: `bca`, `mandiri`, `bni`, `permata`
 
+### Event Timeline
+```
+GET    /api/events/payroll/{id}             # Get event history for payroll run
+```
+
 ### Health Check
 ```
-GET    /health                         # API health status
+GET    /health                              # API health status
 ```
 
 ### Hangfire Dashboard
 ```
-GET    /hangfire                       # Background jobs dashboard
+GET    /hangfire                            # Background jobs dashboard
 ```
 
 ## Testing
@@ -262,26 +320,44 @@ dotnet test /p:CollectCoverage=true
    .\start.ps1
    ```
 
-2. **Create Payroll Run**
-   - Open frontend: `http://localhost:3000/payroll`
+2. **Manage Employees** (Optional - sudah ada seed data)
+   - Open frontend: `http://localhost:3000/employees`
+   - Add/Edit employees dengan salary components
+   - Set PTKP status (TK/0, K/1, K/2, dll)
+
+3. **Create Payroll Run**
+   - Navigate to: `http://localhost:3000/payroll`
    - Click "Create Payroll Run"
    - Select period (month + year)
    - Submit
 
-3. **Wait for Calculation**
+4. **Wait for Calculation**
    - Status akan berubah: Draft → Calculating → Calculated
    - Monitor di Hangfire dashboard: `https://localhost:5044/hangfire`
+   - Calculation includes: PPh 21, BPJS, Overtime, Prorate
 
-4. **Review & Approve**
+5. **Review Payroll**
    - Click "View Details" pada payroll run
-   - Review line items
-   - Click "Approve Payroll"
+   - **Line Items Tab**: Review salary breakdown per employee
+   - **Summary Tab**: View financial summary + pie charts
+   - **Timeline Tab**: See event history
+   - Click "Start Review" untuk mulai review process
 
-5. **Lock & Generate Documents**
-   - Click "Lock Payroll"
-   - Download PDF payslip per employee
-   - Download Excel export
-   - Generate bank file untuk disbursement
+6. **Approve or Reject**
+   - Status: UnderReview
+   - Click "Approve" dengan notes (optional)
+   - Or "Reject" dengan reason untuk kembali ke Draft
+
+7. **Lock & Generate Documents**
+   - Status: Approved
+   - Click "Lock & Generate Payslip"
+   - Background job akan generate PDF payslip untuk semua karyawan
+   - Status berubah: Locked
+
+8. **Download Documents**
+   - **Export Excel**: Download full payroll report (3 sheets)
+   - **Bank File**: Generate file untuk BCA/Mandiri/BNI/Permata
+   - **PDF Payslip**: Download per employee dari tabel line items
 
 ## Deployment
 

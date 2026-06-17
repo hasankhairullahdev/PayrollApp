@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using PayrollApp.Application.Common;
 using PayrollApp.Infrastructure.Repositories;
 
@@ -9,10 +10,14 @@ public record GetEmployeeByIdQuery(Guid Id) : IRequest<Result<EmployeeDto>>;
 public class GetEmployeeByIdQueryHandler : IRequestHandler<GetEmployeeByIdQuery, Result<EmployeeDto>>
 {
     private readonly IEmployeeRepository _employeeRepository;
+    private readonly ILogger<GetEmployeeByIdQueryHandler> _logger;
 
-    public GetEmployeeByIdQueryHandler(IEmployeeRepository employeeRepository)
+    public GetEmployeeByIdQueryHandler(
+        IEmployeeRepository employeeRepository,
+        ILogger<GetEmployeeByIdQueryHandler> logger)
     {
         _employeeRepository = employeeRepository;
+        _logger = logger;
     }
 
     public async Task<Result<EmployeeDto>> Handle(GetEmployeeByIdQuery request, CancellationToken cancellationToken)
@@ -24,6 +29,9 @@ public class GetEmployeeByIdQueryHandler : IRequestHandler<GetEmployeeByIdQuery,
             return Result.Failure<EmployeeDto>($"Employee with ID {request.Id} not found");
         }
 
+        _logger.LogInformation("Employee {EmployeeId} loaded with {ComponentCount} salary components",
+            employee.Id, employee.SalaryComponents?.Count ?? 0);
+
         var employeeDto = new EmployeeDto(
             employee.Id,
             employee.EmployeeCode,
@@ -34,14 +42,14 @@ public class GetEmployeeByIdQueryHandler : IRequestHandler<GetEmployeeByIdQuery,
             employee.JoinDate,
             employee.ResignDate,
             employee.IsActive,
-            employee.SalaryComponents.Select(c => new SalaryComponentDto(
+            employee.SalaryComponents?.Select(c => new SalaryComponentDto(
                 c.ComponentId,
                 c.Name,
                 c.Amount.Amount,
                 c.Type.ToString(),
                 c.EffectiveDate,
                 null // EffectiveTo is not in domain model
-            )).ToList()
+            )).ToList() ?? new List<SalaryComponentDto>()
         );
 
         return Result.Success(employeeDto);

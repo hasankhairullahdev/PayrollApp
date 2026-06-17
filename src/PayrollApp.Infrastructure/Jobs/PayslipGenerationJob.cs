@@ -71,7 +71,7 @@ public class PayslipGenerationJob
                     var pdfPath = await GeneratePayslipPdfAsync(payrollRun, lineItem, cancellationToken.ShutdownToken);
                     
                     // Raise PayslipGenerated event
-                    payrollRun.GeneratePayslip(lineItem.EmployeeId, pdfPath);
+                    payrollRun.GeneratePayslip(lineItem.EmployeeId.ToString(), pdfPath);
                     
                     generatedCount++;
                     
@@ -155,7 +155,7 @@ public class PayslipGenerationJob
             }
             
             // Find line item for employee
-            var lineItem = payrollRun.LineItems.FirstOrDefault(x => x.EmployeeId == employeeId);
+            var lineItem = payrollRun.LineItems.FirstOrDefault(x => x.EmployeeId.ToString() == employeeId);
             if (lineItem == null)
             {
                 throw new InvalidOperationException($"Employee {employeeId} not found in PayrollRun {payrollRunId}");

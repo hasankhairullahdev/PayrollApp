@@ -57,8 +57,15 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
                 // Result<T>
                 var valueType = resultType.GetGenericArguments()[0];
                 var failureMethod = typeof(Result)
-                    .GetMethod(nameof(Result.Failure))!
+                    .GetMethods()
+                    .Where(m => m.Name == "Failure" && m.IsGenericMethod)
+                    .FirstOrDefault()?
                     .MakeGenericMethod(valueType);
+                
+                if (failureMethod == null)
+                {
+                    throw new InvalidOperationException($"Could not find Failure<T> method for type {valueType.Name}");
+                }
                 
                 return (TResponse)failureMethod.Invoke(null, new object[] { errorMessages })!;
             }

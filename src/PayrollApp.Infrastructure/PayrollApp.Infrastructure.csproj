@@ -12,6 +12,7 @@
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
     <PackageReference Include="Marten" Version="9.7.2" />
     <PackageReference Include="Marten.AspNetCore" Version="9.7.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="QuestPDF" Version="2024.12.3" />
     <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
   </ItemGroup>

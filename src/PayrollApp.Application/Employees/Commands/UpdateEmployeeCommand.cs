@@ -33,29 +33,14 @@ public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeComman
             return Result.Failure<bool>($"Employee with ID {request.Id} not found");
         }
 
-        // Update basic info - using reflection since domain doesn't expose setters
-        // In a real scenario, you'd add proper domain methods for these updates
-        var employeeType = employee.GetType();
-        
-        var fullNameProp = employeeType.GetProperty("FullName");
-        fullNameProp?.SetValue(employee, request.FullName);
-        
-        var emailProp = employeeType.GetProperty("Email");
-        emailProp?.SetValue(employee, request.Email);
-        
-        var npwpProp = employeeType.GetProperty("Npwp");
-        npwpProp?.SetValue(employee, request.Npwp);
+        // Update basic info using domain method
+        employee.UpdateBasicInfo(request.FullName, request.Email, request.Npwp);
 
         // Update PTKP status using domain method
         employee.UpdatePtkpStatus(request.PtkpStatus);
 
-        // Update salary components - remove all and add new ones
-        var existingComponents = employee.SalaryComponents.ToList();
-        foreach (var component in existingComponents)
-        {
-            employee.RemoveSalaryComponent(component.ComponentId);
-        }
-
+        // Build new salary components list
+        var newComponents = new List<SalaryComponent>();
         foreach (var componentDto in request.SalaryComponents)
         {
             if (!Enum.TryParse<SalaryComponentType>(componentDto.Type, out var componentType))
@@ -71,8 +56,11 @@ public class UpdateEmployeeCommandHandler : IRequestHandler<UpdateEmployeeComman
                 componentDto.EffectiveFrom
             );
 
-            employee.AddSalaryComponent(salaryComponent);
+            newComponents.Add(salaryComponent);
         }
+
+        // Update salary components using domain method
+        employee.UpdateSalaryComponents(newComponents);
 
         // Save updated employee
         await _employeeRepository.UpdateAsync(employee, cancellationToken);

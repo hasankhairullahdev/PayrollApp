@@ -7,7 +7,8 @@ namespace PayrollApp.Domain.ValueObjects;
 public record PayrollLineItem
 {
     public Guid Id { get; init; }
-    public string EmployeeId { get; init; }
+    public Guid EmployeeId { get; init; }
+    public string EmployeeCode { get; init; }
     public string EmployeeName { get; init; }
     public decimal BasicSalary { get; init; }
     public decimal TotalAllowances { get; init; }
@@ -26,7 +27,8 @@ public record PayrollLineItem
 
     public PayrollLineItem(
         Guid id,
-        string employeeId,
+        Guid employeeId,
+        string employeeCode,
         string employeeName,
         decimal basicSalary,
         decimal totalAllowances,
@@ -43,6 +45,7 @@ public record PayrollLineItem
     {
         Id = id;
         EmployeeId = employeeId;
+        EmployeeCode = employeeCode;
         EmployeeName = employeeName;
         BasicSalary = basicSalary;
         TotalAllowances = totalAllowances;

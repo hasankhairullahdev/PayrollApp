@@ -97,30 +97,8 @@ public class PayrollCalculationJob
             // Save events
             session.Events.Append(payrollRunId, payrollRun.GetUncommittedEvents().ToArray());
             
-            // Save line items as documents (for querying)
-            var readModelLineItems = lineItems.Select(item => new ReadModels.PayrollLineItem
-            {
-                Id = Guid.NewGuid(),
-                PayrollRunId = payrollRunId,
-                EmployeeId = Guid.Parse(item.EmployeeId),
-                EmployeeCode = item.EmployeeId,
-                EmployeeName = item.EmployeeName,
-                BasicSalary = item.BasicSalary,
-                Allowances = item.TotalAllowances,
-                Overtime = item.TotalOvertime,
-                GrossSalary = item.GrossSalary,
-                Deductions = item.TotalDeductions,
-                BpjsKesehatan = item.BPJS.KesehatanEmployee.Amount,
-                BpjsKetenagakerjaan = item.BPJS.JhtEmployee.Amount + item.BPJS.JpEmployee.Amount,
-                TotalBpjs = item.BPJS.TotalEmployeeContribution.Amount,
-                Pph21 = item.Pph21,
-                TakeHomePay = item.TakeHomePay,
-                IsProrated = item.IsProrated,
-                ProratePercentage = item.ProratePercentage,
-                CalculatedAt = DateTime.UtcNow
-            }).ToList();
-            
-            session.Store(readModelLineItems.ToArray());
+            // Line items akan di-create oleh PayrollLineItemProjection dari PayrollCalculated event
+            // Tidak perlu manual save di sini
             
             await session.SaveChangesAsync(cancellationToken.ShutdownToken);
             
@@ -141,9 +119,15 @@ public class PayrollCalculationJob
     {
         var period = new DateOnly(year, month, 1);
         
+        _logger.LogDebug("Calculating payroll for employee {EmployeeCode} with {ComponentCount} salary components",
+            employee.EmployeeCode, employee.SalaryComponents?.Count ?? 0);
+        
         // 1. Calculate basic salary + allowances
         var basicSalary = employee.GetBasicSalary(period);
         var allowances = employee.GetTotalAllowances(period);
+        
+        _logger.LogDebug("Employee {EmployeeCode}: BasicSalary={BasicSalary}, Allowances={Allowances}",
+            employee.EmployeeCode, basicSalary.Amount, allowances.Amount);
         
         // 2. Calculate overtime (if any)
         // TODO: Get actual overtime data from timesheet
@@ -195,7 +179,8 @@ public class PayrollCalculationJob
         // 9. Create line item
         return new Domain.ValueObjects.PayrollLineItem(
             Guid.NewGuid(),
-            employee.Id.ToString(),
+            employee.Id,
+            employee.EmployeeCode,
             employee.FullName,
             basicSalary.Amount,
             allowances.Amount,

@@ -57,25 +57,31 @@ export function EmployeeDialog({ isOpen, onClose, employee, mode }: EmployeeDial
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (employee && mode === 'edit') {
-      setFormData({
-        employeeCode: employee.employeeCode,
-        fullName: employee.fullName,
-        email: employee.email,
-        npwp: employee.npwp || '',
-        ptkpStatus: employee.ptkpStatus,
-        joinDate: employee.joinDate.split('T')[0],
-      });
-      setSalaryComponents(
-        employee.salaryComponents.map(c => ({
-          name: c.name,
-          amount: c.amount.toString(),
-          type: c.type,
-          effectiveFrom: c.effectiveFrom.split('T')[0],
-        }))
-      );
+    if (isOpen) {
+      if (employee && mode === 'edit') {
+        // Edit mode: populate with employee data
+        setFormData({
+          employeeCode: employee.employeeCode,
+          fullName: employee.fullName,
+          email: employee.email,
+          npwp: employee.npwp || '',
+          ptkpStatus: employee.ptkpStatus,
+          joinDate: employee.joinDate.split('T')[0],
+        });
+        setSalaryComponents(
+          employee.salaryComponents.map(c => ({
+            name: c.name,
+            amount: c.amount.toString(),
+            type: c.type,
+            effectiveFrom: c.effectiveFrom.split('T')[0],
+          }))
+        );
+      } else if (mode === 'create') {
+        // Create mode: reset to default values
+        resetForm();
+      }
     }
-  }, [employee, mode]);
+  }, [isOpen, employee, mode]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateEmployeeRequest) => employeeApi.createEmployee(data),

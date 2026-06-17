@@ -60,6 +60,22 @@ public static class PayrollEndpoints
             .Produces(200)
             .Produces<ProblemDetails>(400)
             .Produces<ProblemDetails>(404);
+
+        // POST /api/payroll/{id}/start-review - Start review payroll run
+        group.MapPost("/{id:guid}/start-review", StartReviewPayrollRun)
+            .WithName("StartReviewPayrollRun")
+            .WithSummary("Start review process for calculated payroll run")
+            .Produces(200)
+            .Produces<ProblemDetails>(400)
+            .Produces<ProblemDetails>(404);
+
+        // POST /api/payroll/{id}/reject - Reject payroll run
+        group.MapPost("/{id:guid}/reject", RejectPayrollRun)
+            .WithName("RejectPayrollRun")
+            .WithSummary("Reject payroll run during review")
+            .Produces(200)
+            .Produces<ProblemDetails>(400)
+            .Produces<ProblemDetails>(404);
     }
 
     private static async Task<IResult> GetPayrollRuns(
@@ -171,6 +187,45 @@ public static class PayrollEndpoints
             : Results.BadRequest(CreateProblemDetails("Failed to lock payroll run", result.Error));
     }
 
+    private static async Task<IResult> StartReviewPayrollRun(
+        Guid id,
+        [FromBody] StartReviewRequest request,
+        [FromServices] IMediator mediator,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new StartReviewCommand
+        {
+            PayrollRunId = id,
+            ReviewedBy = request.ReviewedBy
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok()
+            : Results.BadRequest(CreateProblemDetails("Failed to start review", result.Error));
+    }
+
+    private static async Task<IResult> RejectPayrollRun(
+        Guid id,
+        [FromBody] RejectPayrollRequest request,
+        [FromServices] IMediator mediator,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new RejectPayrollCommand
+        {
+            PayrollRunId = id,
+            RejectedBy = request.RejectedBy,
+            Reason = request.Reason
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok()
+            : Results.BadRequest(CreateProblemDetails("Failed to reject payroll run", result.Error));
+    }
+
     private static ProblemDetails CreateProblemDetails(string title, string detail)
     {
         return new ProblemDetails
@@ -186,5 +241,7 @@ public static class PayrollEndpoints
 public record CreatePayrollRunRequest(int Month, int Year, string CreatedBy);
 public record ApprovePayrollRequest(string ApprovedBy, string? Notes);
 public record LockPayrollRequest(string LockedBy);
+public record StartReviewRequest(string ReviewedBy);
+public record RejectPayrollRequest(string RejectedBy, string Reason);
 
 // Made with Bob

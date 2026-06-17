@@ -6,8 +6,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MoneyDisplay } from '@/components/MoneyDisplay';
 import { PayrollPeriodDisplay } from '@/components/PayrollPeriodDisplay';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { api } from '@/lib/api';
+import { PayrollActionDialog } from '@/components/PayrollActionDialog';
+import { PayrollTimeline } from '@/components/PayrollTimeline';
+import { PayrollSummaryCharts } from '@/components/PayrollSummaryCharts';
+import { api, payrollApi } from '@/lib/api';
 
 interface PayrollRunDetail {
   id: string;
@@ -46,9 +48,9 @@ export default function PayrollDetailPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'line-items' | 'summary' | 'timeline'>('line-items');
   const [searchQuery, setSearchQuery] = useState('');
-  const [confirmDialog, setConfirmDialog] = useState<{
+  const [actionDialog, setActionDialog] = useState<{
     isOpen: boolean;
-    action: 'approve' | 'lock' | null;
+    action: 'start-review' | 'approve' | 'reject' | 'lock' | null;
   }>({ isOpen: false, action: null });
 
   const { data: payrollRun, isLoading } = useQuery({
@@ -68,33 +70,11 @@ export default function PayrollDetailPage() {
     enabled: activeTab === 'line-items',
   });
 
-  const approveMutation = useMutation({
-    mutationFn: async () => {
-      await api.post(`/api/payroll/${id}/approve`, {
-        approvedBy: 'current-user',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payroll-run', id] });
-      setConfirmDialog({ isOpen: false, action: null });
-    },
-  });
-
-  const lockMutation = useMutation({
-    mutationFn: async () => {
-      await api.post(`/api/payroll/${id}/lock`, {
-        lockedBy: 'current-user',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payroll-run', id] });
-      setConfirmDialog({ isOpen: false, action: null });
-    },
-  });
-
   // Memoize status checks (rerender-derived-state)
-  const canApprove = useMemo(() => payrollRun?.status === 'UnderReview', [payrollRun?.status]);
+  const canStartReview = useMemo(() => payrollRun?.status === 'Calculated', [payrollRun?.status]);
+  const canApproveOrReject = useMemo(() => payrollRun?.status === 'UnderReview', [payrollRun?.status]);
   const canLock = useMemo(() => payrollRun?.status === 'Approved', [payrollRun?.status]);
+  const isLocked = useMemo(() => payrollRun?.status === 'Locked', [payrollRun?.status]);
 
   // Memoize filtered line items with search
   const filteredLineItems = useMemo(() => {
@@ -122,18 +102,74 @@ export default function PayrollDetailPage() {
     pph21: filteredLineItems.reduce((sum, item) => sum + item.pph21, 0),
   }), [filteredLineItems]);
 
-  // Stable callbacks (rerender-functional-setstate)
+  // Stable event handlers (rerender-functional-setstate)
+  const handleStartReview = useCallback(() => {
+    setActionDialog({ isOpen: true, action: 'start-review' });
+  }, []);
+
   const handleApprove = useCallback(() => {
-    setConfirmDialog({ isOpen: true, action: 'approve' });
+    setActionDialog({ isOpen: true, action: 'approve' });
+  }, []);
+
+  const handleReject = useCallback(() => {
+    setActionDialog({ isOpen: true, action: 'reject' });
   }, []);
 
   const handleLock = useCallback(() => {
-    setConfirmDialog({ isOpen: true, action: 'lock' });
+    setActionDialog({ isOpen: true, action: 'lock' });
   }, []);
 
-  const handleCloseDialog = useCallback(() => {
-    setConfirmDialog({ isOpen: false, action: null });
-  }, []);
+  // Download handlers (rerender-functional-setstate)
+  const handleExportExcel = useCallback(async () => {
+    try {
+      const blob = await payrollApi.exportPayrollExcel(id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Payroll_${payrollRun?.month}_${payrollRun?.year}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to export Excel:', error);
+      alert('Gagal export Excel. Silakan coba lagi.');
+    }
+  }, [id, payrollRun?.month, payrollRun?.year]);
+
+  const handleGenerateBankFile = useCallback(async (bank: string) => {
+    try {
+      const blob = await payrollApi.generateBankFile(id, bank);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${bank.toUpperCase()}_Payroll_${payrollRun?.month}_${payrollRun?.year}.${bank === 'mandiri' ? 'csv' : 'txt'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to generate bank file:', error);
+      alert('Gagal generate bank file. Silakan coba lagi.');
+    }
+  }, [id, payrollRun?.month, payrollRun?.year]);
+
+  const handleDownloadPayslip = useCallback(async (employeeId: string, employeeName: string) => {
+    try {
+      const blob = await payrollApi.downloadPayslipPdf(id, employeeId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Payslip_${employeeName.replace(/\s+/g, '_')}_${payrollRun?.month}_${payrollRun?.year}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to download payslip:', error);
+      alert('Gagal download payslip. Silakan coba lagi.');
+    }
+  }, [id, payrollRun?.month, payrollRun?.year]);
 
   if (isLoading) {
     return (
@@ -208,118 +244,185 @@ export default function PayrollDetailPage() {
               })}
             </p>
           </div>
-          <div className="flex gap-4 animate-slide-in" style={{ animationDelay: '100ms' }}>
-            {canApprove && (
+          <div className="flex gap-3 animate-slide-in" style={{ animationDelay: '100ms' }}>
+            {canStartReview && (
               <button
-                onClick={handleApprove}
-                className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
+                onClick={handleStartReview}
+                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                Approve Payroll
+                Mulai Review
               </button>
+            )}
+            {canApproveOrReject && (
+              <>
+                <button
+                  onClick={handleApprove}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Approve
+                </button>
+                <button
+                  onClick={handleReject}
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Reject
+                </button>
+              </>
             )}
             {canLock && (
               <button
                 onClick={handleLock}
-                className="px-8 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                Lock Payroll
+                Lock & Generate Payslip
               </button>
+            )}
+            
+            {/* Export Buttons - Always visible for calculated and beyond */}
+            {payrollRun.status !== 'Draft' && payrollRun.status !== 'Calculating' && (
+              <>
+                <button
+                  onClick={handleExportExcel}
+                  className="px-6 py-3 bg-white border-2 border-teal-500 text-teal-600 rounded-xl font-semibold hover:bg-teal-50 transition-all duration-300 flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export Excel
+                </button>
+
+                {isLocked && (
+                  <div className="relative group">
+                    <button className="px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-300 flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                      Bank File
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Dropdown */}
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border-2 border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
+                      {['BCA', 'Mandiri', 'BNI', 'Permata'].map((bank) => (
+                        <button
+                          key={bank}
+                          onClick={() => handleGenerateBankFile(bank.toLowerCase())}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl transition-colors flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span className="font-medium text-gray-700">{bank}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="group card-premium rounded-3xl p-6 hover-lift">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Status</p>
-                <StatusBadge status={payrollRun.status} />
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="group card-premium rounded-2xl p-4 hover-lift text-center">
+            {/* Header with Icon and Title - Highlighted */}
+            <div className="flex items-center justify-center gap-2 mb-3 pb-2 bg-gradient-to-r from-teal-50 to-emerald-50 -mx-4 -mt-4 pt-4 px-4 rounded-t-2xl">
+              <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center shadow group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <p className="text-xs font-bold text-teal-700 uppercase tracking-wide">Status</p>
+            </div>
+            {/* Value */}
+            <div className="flex justify-center mt-2">
+              <StatusBadge status={payrollRun.status} />
             </div>
           </div>
 
-          <div className="group card-premium rounded-3xl p-6 hover-lift">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Employees</p>
-                <div className="text-2xl md:text-3xl font-bold gradient-text-navy">{lineItems?.length || 0}</div>
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-2xl p-4 hover-lift text-center">
+            {/* Header with Icon and Title - Highlighted */}
+            <div className="flex items-center justify-center gap-2 mb-3 pb-2 bg-gradient-to-r from-amber-50 to-orange-50 -mx-4 -mt-4 pt-4 px-4 rounded-t-2xl">
+              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center shadow group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
+              <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Employees</p>
             </div>
+            {/* Value */}
+            <div className="text-2xl font-bold gradient-text-navy mt-2">{lineItems?.length || 0}</div>
           </div>
 
-          <div className="group card-premium rounded-3xl p-6 hover-lift">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Gross Amount</p>
-                <MoneyDisplay amount={totals.gross} className="text-xl md:text-2xl font-bold truncate" />
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-2xl p-4 hover-lift text-center">
+            {/* Header with Icon and Title - Highlighted */}
+            <div className="flex items-center justify-center gap-2 mb-3 pb-2 bg-gradient-to-r from-blue-50 to-indigo-50 -mx-4 -mt-4 pt-4 px-4 rounded-t-2xl">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <p className="text-xs font-bold text-blue-700 uppercase tracking-wide">Gross Amount</p>
             </div>
+            {/* Value */}
+            <MoneyDisplay amount={totals.gross} className="text-lg font-bold mt-2" />
           </div>
 
-          <div className="group card-premium rounded-3xl p-6 hover-lift">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">Net Amount</p>
-                <MoneyDisplay amount={payrollRun.totalAmount} className="text-xl md:text-2xl font-bold truncate" />
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 flex-shrink-0 ml-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="group card-premium rounded-2xl p-4 hover-lift text-center">
+            {/* Header with Icon and Title - Highlighted */}
+            <div className="flex items-center justify-center gap-2 mb-3 pb-2 bg-gradient-to-r from-emerald-50 to-teal-50 -mx-4 -mt-4 pt-4 px-4 rounded-t-2xl">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
+              <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Net Amount</p>
             </div>
+            {/* Value */}
+            <MoneyDisplay amount={payrollRun.totalAmount} className="text-lg font-bold mt-2" />
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+      <div className="mb-8">
+        <div className="flex flex-wrap gap-3">
           {[
-            { id: 'line-items', label: 'Line Items', icon: '📋' },
-            { id: 'summary', label: 'Summary', icon: '📊' },
-            { id: 'timeline', label: 'Timeline', icon: '⏱️' },
+            { id: 'line-items', label: 'Line Items', icon: '📋', color: 'from-teal-500 to-teal-600' },
+            { id: 'summary', label: 'Summary', icon: '📊', color: 'from-blue-500 to-blue-600' },
+            { id: 'timeline', label: 'Timeline', icon: '⏱️', color: 'from-purple-500 to-purple-600' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`
-                group py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200
+                group px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300 flex items-center gap-3 shadow-md
                 ${activeTab === tab.id
-                  ? 'border-teal-600 text-teal-600'
-                  : 'border-transparent text-[#64748B] hover:text-[#1E3A5F] hover:border-gray-300'
+                  ? `bg-gradient-to-r ${tab.color} text-white shadow-xl scale-105`
+                  : 'bg-white text-[#64748B] hover:scale-105 hover:shadow-lg border-2 border-gray-200 hover:border-teal-500'
                 }
               `}
             >
-              <span className="flex items-center gap-2">
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </span>
+              <span className="text-lg">{tab.icon}</span>
+              <span>{tab.label}</span>
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -379,6 +482,11 @@ export default function PayrollDetailPage() {
                     <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">
                       Net Salary
                     </th>
+                    {isLocked && (
+                      <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider">
+                        Payslip
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -413,11 +521,25 @@ export default function PayrollDetailPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <MoneyDisplay amount={item.takeHomePay} className="text-sm font-bold text-emerald-600" />
                         </td>
+                        {isLocked && (
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <button
+                              onClick={() => handleDownloadPayslip(item.employeeCode, item.employeeName)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg text-xs font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
+                              title="Download Payslip PDF"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              PDF
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-[#64748B]">
+                      <td colSpan={isLocked ? 9 : 8} className="px-6 py-12 text-center text-[#64748B]">
                         {searchQuery ? 'No employees found matching your search' : 'No line items available'}
                       </td>
                     </tr>
@@ -460,184 +582,102 @@ export default function PayrollDetailPage() {
       )}
 
       {activeTab === 'summary' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="card-premium rounded-3xl p-6">
-            <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              Financial Summary
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                <span className="text-sm text-[#64748B]">Total Employees</span>
-                <span className="font-semibold text-[#1E3A5F]">{payrollRun.employeeCount}</span>
-              </div>
-              <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                <span className="text-sm text-[#64748B]">Gross Amount</span>
-                <MoneyDisplay amount={totals.gross} className="font-semibold text-[#1E3A5F]" />
-              </div>
-              <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                <span className="text-sm text-[#64748B]">Total Deductions</span>
-                <MoneyDisplay amount={totals.deductions} className="font-semibold text-red-600" />
-              </div>
-              <div className="flex justify-between items-center py-3 bg-gradient-to-r from-teal-50 to-emerald-50 -mx-6 px-6 rounded-lg">
-                <span className="text-sm font-semibold text-[#1E3A5F]">Net Amount</span>
-                <MoneyDisplay amount={payrollRun.totalAmount} className="font-bold text-lg text-emerald-600" />
+        <div className="space-y-6">
+          {/* Pie Charts */}
+          <PayrollSummaryCharts totals={totals} />
+
+          {/* Financial Summary & Approval Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="card-premium rounded-3xl p-6">
+              <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Financial Summary
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-sm text-[#64748B]">Total Employees</span>
+                  <span className="font-semibold text-[#1E3A5F]">{payrollRun.employeeCount}</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-sm text-[#64748B]">Gross Amount</span>
+                  <MoneyDisplay amount={totals.gross} className="font-semibold text-[#1E3A5F]" />
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-sm text-[#64748B]">Total Deductions</span>
+                  <MoneyDisplay amount={totals.deductions} className="font-semibold text-red-600" />
+                </div>
+                <div className="flex justify-between items-center py-3 bg-gradient-to-r from-teal-50 to-emerald-50 -mx-6 px-6 rounded-lg">
+                  <span className="text-sm font-semibold text-[#1E3A5F]">Net Amount</span>
+                  <MoneyDisplay amount={payrollRun.totalAmount} className="font-bold text-lg text-emerald-600" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="card-premium rounded-3xl p-6">
-            <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Approval Information
-            </h3>
-            <div className="space-y-4">
-              {payrollRun.approvedBy && (
-                <>
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-[#64748B]">Approved By</span>
-                    <span className="font-semibold text-[#1E3A5F]">{payrollRun.approvedBy}</span>
+            <div className="card-premium rounded-3xl p-6">
+              <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Approval Information
+              </h3>
+              <div className="space-y-4">
+                {payrollRun.approvedBy && (
+                  <>
+                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                      <span className="text-sm text-[#64748B]">Approved By</span>
+                      <span className="font-semibold text-[#1E3A5F]">{payrollRun.approvedBy}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                      <span className="text-sm text-[#64748B]">Approved At</span>
+                      <span className="font-semibold text-[#1E3A5F]">
+                        {payrollRun.approvedAt && new Date(payrollRun.approvedAt).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {payrollRun.lockedBy && (
+                  <>
+                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                      <span className="text-sm text-[#64748B]">Locked By</span>
+                      <span className="font-semibold text-[#1E3A5F]">{payrollRun.lockedBy}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                      <span className="text-sm text-[#64748B]">Locked At</span>
+                      <span className="font-semibold text-[#1E3A5F]">
+                        {payrollRun.lockedAt && new Date(payrollRun.lockedAt).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {!payrollRun.approvedBy && !payrollRun.lockedBy && (
+                  <div className="text-center py-8 text-[#64748B]">
+                    <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <p className="text-sm">No approval information yet</p>
                   </div>
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-[#64748B]">Approved At</span>
-                    <span className="font-semibold text-[#1E3A5F]">
-                      {payrollRun.approvedAt && new Date(payrollRun.approvedAt).toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                </>
-              )}
-              {payrollRun.lockedBy && (
-                <>
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-[#64748B]">Locked By</span>
-                    <span className="font-semibold text-[#1E3A5F]">{payrollRun.lockedBy}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-[#64748B]">Locked At</span>
-                    <span className="font-semibold text-[#1E3A5F]">
-                      {payrollRun.lockedAt && new Date(payrollRun.lockedAt).toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                </>
-              )}
-              {!payrollRun.approvedBy && !payrollRun.lockedBy && (
-                <div className="text-center py-8 text-[#64748B]">
-                  <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <p className="text-sm">No approval information yet</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {activeTab === 'timeline' && (
-        <div className="card-premium rounded-3xl p-8">
-          <h3 className="text-lg font-semibold text-[#1E3A5F] mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Payroll Timeline
-          </h3>
-          <div className="space-y-6 relative before:absolute before:left-[11px] before:top-[20px] before:bottom-[20px] before:w-0.5 before:bg-gray-200">
-            <div className="flex gap-4 relative">
-              <div className="flex-shrink-0 w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center z-10 shadow-md">
-                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1 pb-6">
-                <div className="font-semibold text-[#1E3A5F] mb-1">Created</div>
-                <div className="text-sm text-[#64748B]">
-                  {new Date(payrollRun.createdAt).toLocaleString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </div>
-                <div className="text-xs text-[#64748B] mt-1">by {payrollRun.createdBy}</div>
-              </div>
-            </div>
-
-            {payrollRun.approvedAt && (
-              <div className="flex gap-4 relative">
-                <div className="flex-shrink-0 w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center z-10 shadow-md">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1 pb-6">
-                  <div className="font-semibold text-[#1E3A5F] mb-1">Approved</div>
-                  <div className="text-sm text-[#64748B]">
-                    {new Date(payrollRun.approvedAt).toLocaleString('id-ID', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </div>
-                  <div className="text-xs text-[#64748B] mt-1">by {payrollRun.approvedBy}</div>
-                </div>
-              </div>
-            )}
-
-            {payrollRun.lockedAt && (
-              <div className="flex gap-4 relative">
-                <div className="flex-shrink-0 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center z-10 shadow-md">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-[#1E3A5F] mb-1">Locked</div>
-                  <div className="text-sm text-[#64748B]">
-                    {new Date(payrollRun.lockedAt).toLocaleString('id-ID', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </div>
-                  <div className="text-xs text-[#64748B] mt-1">by {payrollRun.lockedBy}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <PayrollTimeline payrollRunId={id} />
       )}
 
-      {/* Confirm Dialogs */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen && confirmDialog.action === 'approve'}
-        title="Approve Payroll"
-        description="Are you sure you want to approve this payroll run? This action cannot be undone."
-        confirmText="Approve"
-        cancelText="Cancel"
-        variant="primary"
-        onConfirm={() => approveMutation.mutate()}
-        onCancel={handleCloseDialog}
-      />
-
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen && confirmDialog.action === 'lock'}
-        title="Lock Payroll"
-        description="Are you sure you want to lock this payroll run? After locking, no changes can be made."
-        confirmText="Lock"
-        cancelText="Cancel"
-        variant="danger"
-        onConfirm={() => lockMutation.mutate()}
-        onCancel={handleCloseDialog}
-      />
+      {/* Action Dialog */}
+      {actionDialog.action && (
+        <PayrollActionDialog
+          isOpen={actionDialog.isOpen}
+          onClose={() => setActionDialog({ isOpen: false, action: null })}
+          payrollRunId={id}
+          action={actionDialog.action}
+        />
+      )}
     </div>
   );
 }

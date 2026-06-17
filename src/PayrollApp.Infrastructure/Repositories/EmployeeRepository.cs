@@ -90,7 +90,7 @@ public class EmployeeRepository : IEmployeeRepository
     public async Task UpdateAsync(Employee employee, CancellationToken cancellationToken = default)
     {
         await using var session = _documentStore.LightweightSession();
-        session.Update(employee);
+        session.Store(employee); // Use Store instead of Update to properly handle nested collections
         await session.SaveChangesAsync(cancellationToken);
     }
 }
