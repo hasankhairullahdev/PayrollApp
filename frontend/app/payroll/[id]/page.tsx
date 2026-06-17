@@ -67,7 +67,7 @@ export default function PayrollDetailPage() {
       const response = await api.get<LineItem[]>(`/api/payroll/${id}/line-items`);
       return response.data;
     },
-    enabled: activeTab === 'line-items',
+    // Always fetch line items because summary tab needs the data for charts
   });
 
   // Memoize status checks (rerender-derived-state)
