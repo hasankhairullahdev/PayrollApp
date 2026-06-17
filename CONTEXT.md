@@ -18,6 +18,264 @@
 
 ---
 
+## 📋 Complete User Flow (Expected vs Implemented)
+
+### 1. Setup Awal (Sekali Saja)
+**Expected Flow:**
+- HR input data karyawan: nama, NIK, NPWP, status menikah, tanggungan
+- Input komponen gaji per karyawan: gaji pokok, tunjangan transport, tunjangan makan
+- Enrollment BPJS: kelas berapa
+- App simpan ke database dengan effective_date
+
+**Current Implementation:** ✅ **IMPLEMENTED**
+- ✅ Employee CRUD via `/employees` page
+- ✅ Salary components management per employee
+- ✅ PTKP status (TK/0, K/1, K/2, K/3) untuk PPh 21
+- ✅ NPWP tracking
+- ✅ Join date & resign date
+- ⚠️ **MISSING**: BPJS class enrollment (currently uses default calculation)
+- ⚠️ **MISSING**: Effective date tracking untuk salary component changes
+
+---
+
+### 2. Tiap Bulan - HR Buka Dashboard
+**Expected Flow:**
+- User lihat list payroll runs bulan-bulan sebelumnya
+- Klik "Buat Payroll Run Baru"
+- Isi form: pilih periode (Juli 2025)
+- Input data absensi: total hari masuk, jam lembur, hari alpha per karyawan
+- App cek duplicate period → reject kalau sudah ada
+- Buat PayrollRun → status Draft
+- Auto trigger Hangfire job untuk kalkulasi
+
+**Current Implementation:** ✅ **IMPLEMENTED**
+- ✅ Dashboard `/payroll` dengan list semua payroll runs
+- ✅ Button "Create New Payroll Run"
+- ✅ Form input periode (month + year)
+- ✅ Duplicate period validation
+- ✅ Auto trigger Hangfire calculation job
+- ❌ **MISSING**: Absensi input (hari masuk, jam lembur, hari alpha)
+- ❌ **MISSING**: Import dari sistem absensi eksternal
+- ⚠️ **WORKAROUND**: Overtime currently calculated from fixed employee data
+
+---
+
+### 3. Proses Kalkulasi (Background)
+**Expected Flow:**
+- Status berubah ke "Calculating..."
+- Progress bar atau spinner
+- Frontend polling setiap 3-5 detik
+- Background job: load karyawan → hitung per karyawan → simpan line items
+- Status berubah ke "Calculated"
+- Notifikasi "Siap Review"
+
+**Current Implementation:** ✅ **IMPLEMENTED**
+- ✅ Status: Draft → Calculating → Calculated
+- ✅ Hangfire background job (PayrollCalculationJob)
+- ✅ Kalkulasi: gaji pokok + tunjangan + lembur + prorate + BPJS + PPh 21
+- ✅ Simpan PayrollCalculated event dengan line items
+- ✅ Frontend auto-refresh dengan TanStack Query
+- ⚠️ **PARTIAL**: No real-time progress bar (only status polling)
+- ⚠️ **PARTIAL**: No push notification (only status change detection)
+
+---
+
+### 4. Review oleh HR
+**Expected Flow:**
+- HR klik payroll run → masuk detail page
+- Lihat tabel breakdown per karyawan
+- Lihat total keseluruhan
+- Flag kalau ada anomali (take home minus, gaji naik drastis)
+- Aksi: "Mulai Review" → status Under Review
+- Kalau salah: "Kembalikan ke Draft" → perbaiki → recalculate
+- Kalau oke: "Ajukan ke Finance"
+
+**Current Implementation:** ✅ **IMPLEMENTED**
+- ✅ Detail page `/payroll/[id]` dengan 3 tabs
+- ✅ Tab "Line Items": tabel breakdown per karyawan
+- ✅ Tab "Summary": total + pie charts
+- ✅ Tab "Timeline": event history
+- ✅ Button "Start Review" → status Under Review
+- ✅ Button "Reject" → kembali ke Draft dengan reason
+- ❌ **MISSING**: Anomaly detection & flagging system
+- ❌ **MISSING**: "Ajukan ke Finance" button (currently goes straight to approve)
+- ⚠️ **WORKAROUND**: Review dan Approve digabung dalam satu flow
+
+---
+
+### 5. Approval Finance Manager
+**Expected Flow:**
+- Finance Manager buka dashboard
+- Lihat payroll run "Menunggu Approval"
+- Klik → lihat summary total per departemen
+- Verifikasi angka total
+- Aksi: "Approve" + catatan → status Approved
+- Aksi: "Reject" + alasan → status Draft
+
+**Current Implementation:** ⚠️ **PARTIAL**
+- ✅ Approve command dengan notes
+- ✅ Reject command dengan reason
+- ✅ Status: UnderReview → Approved atau → Draft (rejected)
+- ❌ **MISSING**: Role-based access (Finance Manager vs HR)
+- ❌ **MISSING**: Summary per departemen
+- ❌ **MISSING**: Separate "Menunggu Approval" queue untuk Finance
+- ❌ **MISSING**: Multi-level approval workflow
+- ⚠️ **WORKAROUND**: HR bisa langsung approve (no role separation)
+
+---
+
+### 6. Lock Payroll
+**Expected Flow:**
+- HR kembali, status Approved
+- Klik "Lock & Generate Payslip"
+- Payroll di-lock permanen (no changes allowed)
+- Hangfire job: generate PDF payslip per karyawan
+- Kirim payslip via email ke karyawan
+- Status: Locked
+
+**Current Implementation:** ✅ **IMPLEMENTED**
+- ✅ Button "Lock Payroll" (only visible when Approved)
+- ✅ Lock command → status Locked (permanent)
+- ✅ Hangfire job: PayslipGenerationJob
+- ✅ Generate PDF per karyawan (QuestPDF)
+- ✅ Invariant: no changes after Locked
+- ❌ **MISSING**: Email delivery ke karyawan
+- ❌ **MISSING**: Email template & SMTP configuration
+- ⚠️ **WORKAROUND**: PDF tersedia via download manual
+
+---
+
+### 7. Disbursement
+**Expected Flow:**
+- HR buka halaman disbursement
+- Pilih bank perusahaan (BCA/Mandiri/BNI)
+- Klik "Generate File Transfer"
+- App generate file format bank
+- Download file → upload ke internet banking → eksekusi transfer
+- Kembali ke app → "Konfirmasi Transfer Sudah Dilakukan"
+- Status: Disbursed ✅
+
+**Current Implementation:** ⚠️ **PARTIAL**
+- ✅ Generate bank file: BCA, Mandiri, BNI, Permata
+- ✅ Download via `/api/reports/payroll/{id}/bank-file?bank=bca`
+- ✅ Format sesuai spesifikasi masing-masing bank
+- ❌ **MISSING**: Dedicated disbursement page di frontend
+- ❌ **MISSING**: InitiateDisbursementCommand
+- ❌ **MISSING**: ConfirmDisbursementCommand
+- ❌ **MISSING**: Status Disbursed (currently stops at Locked)
+- ❌ **MISSING**: Disbursement history tracking
+- ⚠️ **WORKAROUND**: Bank file bisa di-generate manual dari detail page
+
+---
+
+### 8. Reporting
+**Expected Flow:**
+- HR/Finance buka menu Reports
+- Download rekap BPJS → upload ke portal BPJS
+- Download rekap PPh 21 → untuk SPT Masa ke DJP
+- Download laporan per departemen
+- Di akhir tahun: download SPT 1721-A1 per karyawan
+
+**Current Implementation:** ⚠️ **PARTIAL**
+- ✅ Excel export dengan 3 sheets:
+  - Sheet 1: Summary per karyawan
+  - Sheet 2: Rekap BPJS
+  - Sheet 3: Rekap PPh 21
+- ✅ PDF payslip per karyawan
+- ✅ Bank file untuk transfer
+- ❌ **MISSING**: Dedicated Reports menu/page
+- ❌ **MISSING**: Laporan per departemen
+- ❌ **MISSING**: SPT 1721-A1 format (annual tax report)
+- ❌ **MISSING**: Custom date range reports
+- ❌ **MISSING**: Export to PDF for management reports
+- ⚠️ **WORKAROUND**: Reports accessible via detail page actions
+
+---
+
+## 📊 Implementation Gap Analysis
+
+### ✅ Fully Implemented (80%)
+1. Employee master data management
+2. Payroll run creation & duplicate validation
+3. Background calculation (PPh 21, BPJS, prorate)
+4. Review workflow (start review, approve, reject)
+5. Lock mechanism with payslip generation
+6. PDF payslip (QuestPDF)
+7. Excel export (3 sheets)
+8. Bank file generation (4 banks)
+9. Event timeline visualization
+10. Summary charts & analytics
+
+### ⚠️ Partially Implemented (15%)
+1. **Absensi Management**: No input form, uses fixed data
+2. **Approval Workflow**: No role separation, no multi-level
+3. **Disbursement**: File generation works, but no workflow
+4. **Reporting**: Basic exports work, no dedicated menu
+5. **Notifications**: Status changes tracked, but no email/push
+
+### ❌ Not Implemented (5%)
+1. **BPJS Class Enrollment**: Uses default calculation
+2. **Salary Component History**: No effective date tracking
+3. **Anomaly Detection**: No automatic flagging
+4. **Email Delivery**: No SMTP integration
+5. **SPT 1721-A1**: Annual tax report format
+
+---
+
+## 🎯 Priority Roadmap to Complete Expected Flow
+
+### Phase A: Critical Missing Features (HIGH)
+1. **Absensi Input Module**
+   - Form untuk input hari masuk, jam lembur, hari alpha per karyawan
+   - Import CSV dari sistem absensi eksternal
+   - Validation & preview sebelum save
+
+2. **Disbursement Workflow**
+   - InitiateDisbursementCommand + handler
+   - ConfirmDisbursementCommand + handler
+   - Dedicated disbursement page di frontend
+   - Status Disbursed implementation
+
+3. **Email Notifications**
+   - SMTP configuration
+   - Email template untuk payslip
+   - Auto-send setelah lock
+   - Notification untuk approval requests
+
+### Phase B: Enhancement Features (MEDIUM)
+4. **Role-Based Access Control**
+   - User roles: HR Admin, Finance Manager, Employee
+   - Permission-based UI (hide/show buttons)
+   - Approval workflow dengan role separation
+
+5. **Reporting Module**
+   - Dedicated Reports page
+   - Laporan per departemen
+   - Custom date range
+   - SPT 1721-A1 format
+
+6. **Anomaly Detection**
+   - Rule engine untuk detect anomali
+   - Flag system di line items
+   - Alert notifications
+
+### Phase C: Nice-to-Have (LOW)
+7. **BPJS Class Management**
+   - BPJS class selection per employee
+   - Dynamic calculation based on class
+
+8. **Salary Component History**
+   - Effective date tracking
+   - History view per employee
+   - Audit trail
+
+9. **Advanced Analytics**
+   - Dashboard dengan KPI metrics
+   - Trend analysis
+   - Cost center breakdown
+
+---
+
 ## 📂 Complete Project Structure
 
 ```
