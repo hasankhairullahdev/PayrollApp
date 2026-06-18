@@ -19,12 +19,18 @@ public static class MartenConfig
             opts.Schema.For<PayrollApp.Domain.Aggregates.Employee>()
                 .UseOptimisticConcurrency(true);
             
+            // Configure User aggregate for event sourcing
+            opts.Schema.For<PayrollApp.Domain.Aggregates.User>()
+                .UseOptimisticConcurrency(true);
+            
             // Register document types
             opts.RegisterDocumentType<PayrollApp.Domain.Aggregates.Employee>();
+            opts.RegisterDocumentType<PayrollApp.Domain.Aggregates.User>();
             opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.PayrollRunSummary>();
             opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.PayrollLineItem>();
+            opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.UserReadModel>();
             
-            // Register domain events
+            // Register Payroll domain events
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollRunCreated>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculationStarted>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.PayrollCalculated>();
@@ -36,13 +42,22 @@ public static class MartenConfig
             opts.Events.AddEventType<PayrollApp.Domain.Events.DisbursementInitiated>();
             opts.Events.AddEventType<PayrollApp.Domain.Events.DisbursementConfirmed>();
             
+            // Register User domain events
+            opts.Events.AddEventType<PayrollApp.Domain.Events.UserRegistered>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.UserLoggedIn>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.UserPasswordChanged>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.UserProfileUpdated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.UserDeactivated>();
+            opts.Events.AddEventType<PayrollApp.Domain.Events.UserActivated>();
+            
             // Register projections - Inline for strong consistency
             opts.Projections.Add<PayrollRunSummaryProjection>(ProjectionLifecycle.Inline);
             opts.Projections.Add<PayrollLineItemProjection>(ProjectionLifecycle.Inline);
+            opts.Projections.Add<UserReadModelProjection>(ProjectionLifecycle.Inline);
             
-            // Database schema name
-            opts.Events.DatabaseSchemaName = "payroll_events";
-            opts.DatabaseSchemaName = "payroll";
+            // Use default schema names (public) for simplicity
+            // opts.Events.DatabaseSchemaName = "payroll_events";
+            // opts.DatabaseSchemaName = "payroll";
         })
         .UseLightweightSessions();
     }

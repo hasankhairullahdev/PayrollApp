@@ -47,6 +47,7 @@ public partial class User
         var @event = new UserRegistered(
             Guid.NewGuid(),
             email.ToLowerInvariant(),
+            passwordHash,
             fullName,
             role,
             DateTime.UtcNow
@@ -155,38 +156,39 @@ public partial class User
         }
     }
 
-    private void Apply(UserRegistered @event)
+    public void Apply(UserRegistered @event)
     {
         Id = @event.UserId;
         Email = @event.Email;
+        PasswordHash = @event.PasswordHash;
         FullName = @event.FullName;
         Role = @event.Role;
         IsActive = true;
         CreatedAt = @event.RegisteredAt;
     }
 
-    private void Apply(UserLoggedIn @event)
+    public void Apply(UserLoggedIn @event)
     {
         LastLoginAt = @event.LoginAt;
     }
 
-    private void Apply(UserPasswordChanged @event)
+    public void Apply(UserPasswordChanged @event)
     {
         // Password hash is updated separately in the handler
         // This event is for audit trail only
     }
 
-    private void Apply(UserProfileUpdated @event)
+    public void Apply(UserProfileUpdated @event)
     {
         FullName = @event.FullName;
     }
 
-    private void Apply(UserDeactivated @event)
+    public void Apply(UserDeactivated @event)
     {
         IsActive = false;
     }
 
-    private void Apply(UserActivated @event)
+    public void Apply(UserActivated @event)
     {
         IsActive = true;
     }

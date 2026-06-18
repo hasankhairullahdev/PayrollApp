@@ -1,0 +1,209 @@
+### Payroll API - Authentication & Authorization Testing
+### Base URL
+@baseUrl = http://localhost:5000
+@contentType = application/json
+
+### Variables (will be set after login)
+@token = 
+@userId = 
+
+###############################################
+# 1. REGISTER NEW USERS
+###############################################
+
+### Register Admin User
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@payroll.com",
+  "password": "Admin123!",
+  "fullName": "System Administrator",
+  "role": "Admin"
+}
+
+### Register HR User
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "hr@payroll.com",
+  "password": "HR123456!",
+  "fullName": "HR Manager",
+  "role": "HR"
+}
+
+### Register Finance User
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "finance@payroll.com",
+  "password": "Finance123!",
+  "fullName": "Finance Manager",
+  "role": "Finance"
+}
+
+### Register Employee User
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "employee@payroll.com",
+  "password": "Employee123!",
+  "fullName": "John Doe",
+  "role": "Employee"
+}
+
+###############################################
+# 2. LOGIN
+###############################################
+
+### Login as Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@payroll.com",
+  "password": "Admin123!"
+}
+
+### Login as HR
+# @name loginHR
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "hr@payroll.com",
+  "password": "HR123456!"
+}
+
+### Login as Finance
+# @name loginFinance
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "finance@payroll.com",
+  "password": "Finance123!"
+}
+
+### Login as Employee
+# @name loginEmployee
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "employee@payroll.com",
+  "password": "Employee123!"
+}
+
+###############################################
+# 3. GET CURRENT USER INFO
+###############################################
+
+### Get Current User (requires authentication)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+###############################################
+# 4. TEST AUTHORIZATION - PAYROLL ENDPOINTS
+###############################################
+
+### Get Payroll Runs (HR/Finance/Admin only)
+GET {{baseUrl}}/api/payroll
+Authorization: Bearer {{token}}
+
+### Create Payroll Run (HR/Admin only)
+POST {{baseUrl}}/api/payroll
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "month": 1,
+  "year": 2026,
+  "createdBy": "HR Manager"
+}
+
+### Approve Payroll (Finance/Admin only)
+POST {{baseUrl}}/api/payroll/{{payrollRunId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "approvedBy": "Finance Manager",
+  "notes": "Approved for disbursement"
+}
+
+###############################################
+# 5. TEST AUTHORIZATION - EMPLOYEE ENDPOINTS
+###############################################
+
+### Get All Employees (HR/Admin only)
+GET {{baseUrl}}/api/employees
+Authorization: Bearer {{token}}
+
+### Create Employee (HR/Admin only)
+POST {{baseUrl}}/api/employees
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "employeeCode": "EMP-TEST-001",
+  "fullName": "Test Employee",
+  "email": "test@example.com",
+  "joinDate": "2026-01-01",
+  "basicSalary": 10000000,
+  "taxStatus": "TK/0",
+  "hasNpwp": true,
+  "salaryComponents": []
+}
+
+###############################################
+# 6. TEST UNAUTHORIZED ACCESS
+###############################################
+
+### Try to access protected endpoint without token (should return 401)
+GET {{baseUrl}}/api/payroll
+
+### Try to access with invalid token (should return 401)
+GET {{baseUrl}}/api/payroll
+Authorization: Bearer invalid_token_here
+
+### Try to create payroll as Employee (should return 403 Forbidden)
+# First login as Employee, then try to create payroll
+POST {{baseUrl}}/api/payroll
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "month": 1,
+  "year": 2026,
+  "createdBy": "Employee"
+}
+
+###############################################
+# NOTES
+###############################################
+# 
+# Role Permissions Summary:
+# 
+# Admin: Full access to all endpoints
+# 
+# HR: 
+#   - Create/view/lock payroll runs
+#   - Start review process
+#   - Manage employees (CRUD)
+# 
+# Finance:
+#   - View payroll runs
+#   - Approve/reject payroll runs
+#   - Start review process
+# 
+# Employee:
+#   - View own payslip only (not implemented yet)
+#   - No access to payroll management
+#   - No access to employee management
+# 
+###############################################

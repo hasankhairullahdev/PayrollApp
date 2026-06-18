@@ -4,6 +4,7 @@ using PayrollApp.Application.Common;
 using PayrollApp.Application.Payroll.Commands;
 using PayrollApp.Application.Payroll.Queries;
 using PayrollApp.Infrastructure.ReadModels;
+using PayrollApp.Infrastructure.Security;
 
 namespace PayrollApp.Api.Endpoints;
 
@@ -18,64 +19,96 @@ public static class PayrollEndpoints
             .WithTags("Payroll");
 
         // GET /api/payroll - List payroll runs dengan pagination & filtering
+        // HR, Finance, Admin can view all payroll runs
         group.MapGet("/", GetPayrollRuns)
             .WithName("GetPayrollRuns")
             .WithSummary("Get list of payroll runs")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrFinanceOrAdmin)
             .Produces<PayrollRunsResponse>(200)
-            .Produces<ProblemDetails>(400);
+            .Produces<ProblemDetails>(400)
+            .Produces(401)
+            .Produces(403);
 
         // GET /api/payroll/{id} - Get payroll run detail
+        // HR, Finance, Admin can view payroll details
         group.MapGet("/{id:guid}", GetPayrollRunDetail)
             .WithName("GetPayrollRunDetail")
             .WithSummary("Get payroll run detail with line items")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrFinanceOrAdmin)
             .Produces<PayrollRunDetailResponse>(200)
-            .Produces<ProblemDetails>(404);
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
 
         // GET /api/payroll/{id}/line-items - Get payroll line items
+        // HR, Finance, Admin can view line items
         group.MapGet("/{id:guid}/line-items", GetPayrollLineItems)
             .WithName("GetPayrollLineItems")
             .WithSummary("Get payroll run line items")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrFinanceOrAdmin)
             .Produces<List<PayrollLineItem>>(200)
-            .Produces<ProblemDetails>(404);
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
 
         // POST /api/payroll - Create new payroll run
+        // Only HR and Admin can create payroll runs
         group.MapPost("/", CreatePayrollRun)
             .WithName("CreatePayrollRun")
             .WithSummary("Create new payroll run and trigger calculation")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
             .Produces<Guid>(201)
-            .Produces<ProblemDetails>(400);
+            .Produces<ProblemDetails>(400)
+            .Produces(401)
+            .Produces(403);
 
         // POST /api/payroll/{id}/approve - Approve payroll run
+        // Only Finance and Admin can approve
         group.MapPost("/{id:guid}/approve", ApprovePayrollRun)
             .WithName("ApprovePayrollRun")
             .WithSummary("Approve payroll run after review")
+            .RequireAuthorization(AuthorizationPolicies.RequireFinanceOrAdmin)
             .Produces(200)
             .Produces<ProblemDetails>(400)
-            .Produces<ProblemDetails>(404);
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
 
         // POST /api/payroll/{id}/lock - Lock payroll run
+        // Only HR and Admin can lock
         group.MapPost("/{id:guid}/lock", LockPayrollRun)
             .WithName("LockPayrollRun")
             .WithSummary("Lock payroll run and trigger payslip generation")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
             .Produces(200)
             .Produces<ProblemDetails>(400)
-            .Produces<ProblemDetails>(404);
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
 
         // POST /api/payroll/{id}/start-review - Start review payroll run
+        // HR, Finance, Admin can start review
         group.MapPost("/{id:guid}/start-review", StartReviewPayrollRun)
             .WithName("StartReviewPayrollRun")
             .WithSummary("Start review process for calculated payroll run")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrFinanceOrAdmin)
             .Produces(200)
             .Produces<ProblemDetails>(400)
-            .Produces<ProblemDetails>(404);
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
 
         // POST /api/payroll/{id}/reject - Reject payroll run
+        // Finance and Admin can reject
         group.MapPost("/{id:guid}/reject", RejectPayrollRun)
             .WithName("RejectPayrollRun")
             .WithSummary("Reject payroll run during review")
+            .RequireAuthorization(AuthorizationPolicies.RequireFinanceOrAdmin)
             .Produces(200)
             .Produces<ProblemDetails>(400)
-            .Produces<ProblemDetails>(404);
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
     }
 
     private static async Task<IResult> GetPayrollRuns(

@@ -8,6 +8,7 @@ namespace PayrollApp.Domain.Events;
 public record UserRegistered(
     Guid UserId,
     string Email,
+    string PasswordHash,
     string FullName,
     UserRole Role,
     DateTime RegisteredAt

@@ -32,22 +32,26 @@ public class JwtTokenGenerator : IJwtTokenGenerator
     /// <summary>
     /// Generate JWT token untuk user
     /// </summary>
-    /// <param name="user">User aggregate</param>
-    /// <returns>JWT token string</returns>
-    public string GenerateToken(User user)
+    public string GenerateToken(Guid userId, string email, string fullName, string role)
     {
-        if (user == null)
-            throw new ArgumentNullException(nameof(user));
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
+        if (string.IsNullOrWhiteSpace(email))
+            throw new ArgumentException("Email cannot be empty", nameof(email));
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new ArgumentException("Full name cannot be empty", nameof(fullName));
+        if (string.IsNullOrWhiteSpace(role))
+            throw new ArgumentException("Role cannot be empty", nameof(role));
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
-            new Claim("userId", user.Id.ToString()),
-            new Claim("email", user.Email),
-            new Claim("role", user.Role.ToString())
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Email, email),
+            new Claim(ClaimTypes.Name, fullName),
+            new Claim(ClaimTypes.Role, role),
+            new Claim("userId", userId.ToString()),
+            new Claim("email", email),
+            new Claim("role", role)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
@@ -126,7 +130,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 /// </summary>
 public interface IJwtTokenGenerator
 {
-    string GenerateToken(User user);
+    string GenerateToken(Guid userId, string email, string fullName, string role);
     ClaimsPrincipal? ValidateToken(string token);
     Guid? GetUserIdFromToken(string token);
 }

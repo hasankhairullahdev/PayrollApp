@@ -9,6 +9,39 @@ export const api = axios.create({
   },
 });
 
+// Add request interceptor to include JWT token
+api.interceptors.request.use(
+  (config) => {
+    // Get token from localStorage
+    const token = typeof window !== 'undefined' ? localStorage.getItem('payroll_token') : null;
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear auth data and redirect to login
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('payroll_token');
+        localStorage.removeItem('payroll_user');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Types
 export interface PayrollRunSummary {
   id: string;

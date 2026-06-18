@@ -2,11 +2,61 @@ using Marten;
 using PayrollApp.Domain.Aggregates;
 using PayrollApp.Domain.Enums;
 using PayrollApp.Domain.ValueObjects;
+using PayrollApp.Infrastructure.Security;
 
 namespace PayrollApp.Api;
 
 public static class SeedData
 {
+    public static async Task SeedUsersAsync(IDocumentStore documentStore, IPasswordHasher passwordHasher)
+    {
+        await using var session = documentStore.LightweightSession();
+        
+        // Check if users already exist
+        var existingUsers = await session.Query<User>().AnyAsync();
+        if (existingUsers)
+        {
+            Console.WriteLine("Users already seeded. Skipping...");
+            return;
+        }
+        
+        Console.WriteLine("Seeding initial users...");
+        
+        // Admin user
+        var admin = User.Register(
+            "admin@payroll.com",
+            passwordHasher.HashPassword("Admin123!"),
+            "System Administrator",
+            UserRole.Admin
+        );
+        session.Events.Append(admin.Id, admin.GetUncommittedEvents().ToArray());
+        
+        // HR user
+        var hr = User.Register(
+            "hr@payroll.com",
+            passwordHasher.HashPassword("HR123!"),
+            "HR Manager",
+            UserRole.HR
+        );
+        session.Events.Append(hr.Id, hr.GetUncommittedEvents().ToArray());
+        
+        // Finance user
+        var finance = User.Register(
+            "finance@payroll.com",
+            passwordHasher.HashPassword("Finance123!"),
+            "Finance Manager",
+            UserRole.Finance
+        );
+        session.Events.Append(finance.Id, finance.GetUncommittedEvents().ToArray());
+        
+        await session.SaveChangesAsync();
+        
+        Console.WriteLine("✓ Seeded 3 users successfully");
+        Console.WriteLine("  - admin@payroll.com / Admin123!");
+        Console.WriteLine("  - hr@payroll.com / HR123!");
+        Console.WriteLine("  - finance@payroll.com / Finance123!");
+    }
+    
     public static async Task SeedEmployeesAsync(IDocumentStore documentStore)
     {
         await using var session = documentStore.LightweightSession();

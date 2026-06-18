@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PayrollApp.Application.Common;
 using PayrollApp.Application.Employees.Commands;
 using PayrollApp.Application.Employees.Queries;
+using PayrollApp.Infrastructure.Security;
 
 namespace PayrollApp.Api.Endpoints;
 
@@ -14,25 +15,45 @@ public static class EmployeeEndpoints
             .WithTags("Employees")
             .WithOpenApi();
 
+        // GET /api/employees - HR and Admin can view all employees
         group.MapGet("/", GetEmployees)
             .WithName("GetEmployees")
-            .WithSummary("Get all employees with optional filtering");
+            .WithSummary("Get all employees with optional filtering")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
+            .Produces(401)
+            .Produces(403);
 
+        // GET /api/employees/{id} - HR and Admin can view employee details
         group.MapGet("/{id:guid}", GetEmployeeById)
             .WithName("GetEmployeeById")
-            .WithSummary("Get employee by ID");
+            .WithSummary("Get employee by ID")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
+            .Produces(401)
+            .Produces(403);
 
+        // POST /api/employees - Only HR and Admin can create employees
         group.MapPost("/", CreateEmployee)
             .WithName("CreateEmployee")
-            .WithSummary("Create a new employee");
+            .WithSummary("Create a new employee")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
+            .Produces(401)
+            .Produces(403);
 
+        // PUT /api/employees/{id} - Only HR and Admin can update employees
         group.MapPut("/{id:guid}", UpdateEmployee)
             .WithName("UpdateEmployee")
-            .WithSummary("Update an existing employee");
+            .WithSummary("Update an existing employee")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
+            .Produces(401)
+            .Produces(403);
 
+        // POST /api/employees/{id}/deactivate - Only HR and Admin can deactivate
         group.MapPost("/{id:guid}/deactivate", DeactivateEmployee)
             .WithName("DeactivateEmployee")
-            .WithSummary("Deactivate an employee (resign)");
+            .WithSummary("Deactivate an employee (resign)")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
+            .Produces(401)
+            .Produces(403);
     }
 
     private static async Task<IResult> GetEmployees(

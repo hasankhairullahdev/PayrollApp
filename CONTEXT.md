@@ -1,7 +1,7 @@
 # CONTEXT.md - Single Source of Truth
 
-**Last Updated**: 2026-06-17 15:14 WIB
-**Project Status**: ✅ PRODUCTION READY (7 Critical Bugs Fixed)
+**Last Updated**: 2026-06-18 13:29 WIB
+**Project Status**: ✅ PRODUCTION READY (Authentication Implemented)
 **Purpose**: Comprehensive context untuk AI agents di new chat sessions
 
 ---
@@ -15,6 +15,74 @@
 - Frontend: Next.js 14 (App Router) + TypeScript + TanStack Query + Recharts
 - Database: PostgreSQL 16
 - Cache: Redis (optional)
+
+## 🔐 Authentication & Authorization
+
+**Implementation Status**: ✅ **FULLY IMPLEMENTED**
+
+### Architecture
+- **Pattern**: JWT Bearer Token Authentication
+- **Password Hashing**: BCrypt (work factor 12)
+- **Token Expiration**: 8 hours
+- **User Aggregate**: Event-sourced with Marten
+- **Read Model**: UserReadModel projection for fast queries
+
+### User Roles
+1. **Admin** - Full system access
+2. **HR** - Employee management, payroll creation
+3. **Finance** - Payroll approval, disbursement
+4. **Employee** - View own payslip only
+
+### Authorization Policies
+- `AdminOnly` - Admin role required
+- `HROnly` - HR role required
+- `FinanceOnly` - Finance role required
+- `HROrFinance` - Either HR or Finance
+- `AdminOrHR` - Either Admin or HR
+- `AdminOrFinance` - Either Admin or Finance
+- `AdminOrHROrFinance` - Any of the three
+- `AllRoles` - Any authenticated user
+
+### API Endpoints
+- `POST /api/auth/register` - Register new user (Admin only in production)
+- `POST /api/auth/login` - Login with email/password, returns JWT token
+- `GET /api/auth/me` - Get current user info from JWT claims
+
+### Frontend Implementation
+- **Auth Context**: React Context with login/logout functions
+- **Result Pattern**: Login returns `{ success: boolean, message?: string }` instead of throwing exceptions
+- **Protected Routes**: Automatic redirect to /login for unauthenticated users
+- **Role-Based UI**: Conditional rendering based on user role
+- **Token Storage**: localStorage with automatic injection via Axios interceptors
+
+### Error Handling Best Practices
+- ✅ Invalid credentials return 401 Unauthorized (not 400)
+- ✅ Expected failures (wrong password) use Result pattern, not exceptions
+- ✅ Exceptions reserved for unexpected errors (network issues, 500 errors)
+- ✅ No Next.js error overlay for normal authentication failures
+
+### Test Users (Seeded on Startup)
+```
+admin@payroll.com / Admin123!     (Admin role)
+hr@payroll.com / HR123!           (HR role)
+finance@payroll.com / Finance123! (Finance role)
+```
+
+### Domain Events
+- `UserRegistered` - New user created
+- `UserLoggedIn` - User successfully authenticated
+- `UserPasswordChanged` - Password updated
+- `UserProfileUpdated` - Profile information changed
+- `UserDeactivated` - User account disabled
+- `UserActivated` - User account re-enabled
+
+### Security Features
+- ✅ Password hashing with BCrypt
+- ✅ JWT token validation on every request
+- ✅ Role-based authorization middleware
+- ✅ Anonymous endpoints for login/register
+- ✅ Automatic token refresh on page reload
+- ✅ Secure logout with token cleanup
 
 ---
 
