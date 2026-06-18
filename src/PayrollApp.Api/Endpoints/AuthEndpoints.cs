@@ -49,7 +49,7 @@ public static class AuthEndpoints
 
             return result.IsSuccess
                 ? Results.Ok(result.Value)
-                : Results.Unauthorized();
+                : Results.Json(new { error = result.Error }, statusCode: StatusCodes.Status401Unauthorized);
         })
         .AllowAnonymous()
         .WithName("Login")

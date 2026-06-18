@@ -30,7 +30,7 @@ public partial class UserReadModelProjection : SingleStreamProjection<UserReadMo
 
     public void Apply(UserPasswordChanged @event, UserReadModel user)
     {
-        // Password hash updated separately in handler
+        user.PasswordHash = @event.NewPasswordHash;
     }
 
     public void Apply(UserProfileUpdated @event, UserReadModel user)

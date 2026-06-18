@@ -5,6 +5,7 @@ namespace PayrollApp.Domain.Events;
 /// </summary>
 public record UserPasswordChanged(
     Guid UserId,
+    string NewPasswordHash,
     DateTime ChangedAt
 );
 

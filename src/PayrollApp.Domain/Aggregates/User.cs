@@ -80,7 +80,7 @@ public partial class User
         if (!IsActive)
             throw new InvalidOperationException("Cannot change password. User account is deactivated.");
 
-        var @event = new UserPasswordChanged(Id, DateTime.UtcNow);
+        var @event = new UserPasswordChanged(Id, newPasswordHash, DateTime.UtcNow);
         RaiseEvent(@event);
     }
 
@@ -174,8 +174,7 @@ public partial class User
 
     public void Apply(UserPasswordChanged @event)
     {
-        // Password hash is updated separately in the handler
-        // This event is for audit trail only
+        PasswordHash = @event.NewPasswordHash;
     }
 
     public void Apply(UserProfileUpdated @event)

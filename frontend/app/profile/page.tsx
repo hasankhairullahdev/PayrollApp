@@ -114,7 +114,7 @@ const InfoCard = ({ label, value, icon }: { label: string; value: string; icon: 
 );
 
 export default function ProfilePage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, updateUser } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,7 +153,7 @@ export default function ProfilePage() {
       setProfile(response.data);
       setFullName(response.data.fullName);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load profile');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -167,11 +167,17 @@ export default function ProfilePage() {
 
     try {
       await api.put('/api/auth/profile', { fullName });
+      if (user) {
+        updateUser({
+          ...user,
+          fullName,
+        });
+      }
       setSuccess('Profile updated successfully');
       setIsEditingProfile(false);
       await loadProfile();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to update profile');
     } finally {
       setProfileLoading(false);
     }
@@ -200,7 +206,7 @@ export default function ProfilePage() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to change password');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to change password');
     } finally {
       setPasswordLoading(false);
     }

@@ -23,6 +23,7 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
+  updateUser: (user: User) => void;
   isAuthenticated: boolean;
   hasRole: (roles: UserRole[]) => boolean;
 }
@@ -133,6 +134,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
+  const updateUser = (updatedUser: User) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   const hasRole = (roles: UserRole[]): boolean => {
     if (!user) return false;
     return roles.includes(user.role);
@@ -144,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!user && !!token,
     hasRole,
   };
