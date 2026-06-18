@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PayrollApp.Application.Auth.Commands;
+using PayrollApp.Application.Auth.Queries;
 using PayrollApp.Domain.Enums;
 
 namespace PayrollApp.Api.Endpoints;
@@ -69,24 +70,74 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            // TODO: Create GetCurrentUserQuery to fetch user details
-            // For now, return basic info from claims
-            var email = context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            var role = context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-            var name = context.User.Identity?.Name;
+            var query = new GetCurrentUserQuery(userId);
+            var result = await mediator.Send(query, ct);
 
-            return Results.Ok(new
-            {
-                userId,
-                email,
-                role,
-                name
-            });
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : Results.NotFound(new { error = result.Error });
         })
         .RequireAuthorization()
         .WithName("GetCurrentUser")
         .WithSummary("Get current authenticated user info")
         .Produces<CurrentUserResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // PUT /api/auth/profile
+        group.MapPut("/profile", async (
+            HttpContext context,
+            [FromBody] UpdateProfileRequest request,
+            IMediator mediator,
+            CancellationToken ct) =>
+        {
+            // Get user ID from JWT claims
+            var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var command = new UpdateProfileCommand(userId, request.FullName);
+            var result = await mediator.Send(command, ct);
+
+            return result.IsSuccess
+                ? Results.Ok(new { message = "Profile updated successfully" })
+                : Results.BadRequest(new { error = result.Error });
+        })
+        .RequireAuthorization()
+        .WithName("UpdateProfile")
+        .WithSummary("Update user profile")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized);
+
+        // POST /api/auth/change-password
+        group.MapPost("/change-password", async (
+            HttpContext context,
+            [FromBody] ChangePasswordRequest request,
+            IMediator mediator,
+            CancellationToken ct) =>
+        {
+            // Get user ID from JWT claims
+            var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var command = new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword);
+            var result = await mediator.Send(command, ct);
+
+            return result.IsSuccess
+                ? Results.Ok(new { message = "Password changed successfully" })
+                : Results.BadRequest(new { error = result.Error });
+        })
+        .RequireAuthorization()
+        .WithName("ChangePassword")
+        .WithSummary("Change user password")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
@@ -111,8 +162,17 @@ public record LoginRequest(
 public record CurrentUserResponse(
     Guid UserId,
     string Email,
+    string FullName,
     string Role,
-    string? Name);
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime? LastLoginAt);
+
+public record UpdateProfileRequest(string FullName);
+
+public record ChangePasswordRequest(
+    string CurrentPassword,
+    string NewPassword);
 
 public record ErrorResponse(string Error);
 

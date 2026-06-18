@@ -19,13 +19,8 @@ public static class MartenConfig
             opts.Schema.For<PayrollApp.Domain.Aggregates.Employee>()
                 .UseOptimisticConcurrency(true);
             
-            // Configure User aggregate for event sourcing
-            opts.Schema.For<PayrollApp.Domain.Aggregates.User>()
-                .UseOptimisticConcurrency(true);
-            
             // Register document types
             opts.RegisterDocumentType<PayrollApp.Domain.Aggregates.Employee>();
-            opts.RegisterDocumentType<PayrollApp.Domain.Aggregates.User>();
             opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.PayrollRunSummary>();
             opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.PayrollLineItem>();
             opts.RegisterDocumentType<PayrollApp.Infrastructure.ReadModels.UserReadModel>();

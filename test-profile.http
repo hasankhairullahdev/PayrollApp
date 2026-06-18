@@ -1,0 +1,55 @@
+### Test Profile Management Endpoints
+
+@baseUrl = http://localhost:5000
+@token = 
+
+### 1. Login as Admin to get token
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@payroll.com",
+  "password": "Admin123!"
+}
+
+### 2. Get Current User Profile (GET /api/auth/me)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### 3. Update Profile (PUT /api/auth/profile)
+PUT {{baseUrl}}/api/auth/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Admin User Updated"
+}
+
+### 4. Change Password (POST /api/auth/change-password)
+POST {{baseUrl}}/api/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "Admin123!",
+  "newPassword": "NewAdmin123!"
+}
+
+### 5. Login with New Password
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@payroll.com",
+  "password": "NewAdmin123!"
+}
+
+### 6. Change Password Back to Original
+POST {{baseUrl}}/api/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "NewAdmin123!",
+  "newPassword": "Admin123!"
+}

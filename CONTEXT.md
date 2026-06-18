@@ -1,7 +1,7 @@
 # CONTEXT.md - Single Source of Truth
 
-**Last Updated**: 2026-06-18 13:29 WIB
-**Project Status**: ✅ PRODUCTION READY (Authentication Implemented)
+**Last Updated**: 2026-06-18 14:22 WIB
+**Project Status**: ✅ PRODUCTION READY (Authentication + Profile Management Implemented)
 **Purpose**: Comprehensive context untuk AI agents di new chat sessions
 
 ---
@@ -46,7 +46,9 @@
 ### API Endpoints
 - `POST /api/auth/register` - Register new user (Admin only in production)
 - `POST /api/auth/login` - Login with email/password, returns JWT token
-- `GET /api/auth/me` - Get current user info from JWT claims
+- `GET /api/auth/me` - Get current user profile information
+- `PUT /api/auth/profile` - Update user profile (full name)
+- `POST /api/auth/change-password` - Change user password (requires current password)
 
 ### Frontend Implementation
 - **Auth Context**: React Context with login/logout functions
@@ -54,6 +56,8 @@
 - **Protected Routes**: Automatic redirect to /login for unauthenticated users
 - **Role-Based UI**: Conditional rendering based on user role
 - **Token Storage**: localStorage with automatic injection via Axios interceptors
+- **Profile Page**: Modern UI at `/profile` with edit profile and change password functionality
+- **Navigation**: Profile accessible via user section in sidebar (not main menu)
 
 ### Error Handling Best Practices
 - ✅ Invalid credentials return 401 Unauthorized (not 400)
@@ -83,6 +87,34 @@ finance@payroll.com / Finance123! (Finance role)
 - ✅ Anonymous endpoints for login/register
 - ✅ Automatic token refresh on page reload
 - ✅ Secure logout with token cleanup
+- ✅ Current password verification for password changes
+- ✅ Password complexity validation (8+ chars, uppercase, lowercase, number, special char)
+
+### Profile Management
+**Status**: ✅ **FULLY IMPLEMENTED & TESTED**
+
+**Backend Components:**
+- `GetCurrentUserQuery` & Handler - Retrieve user profile from UserReadModel
+- `UpdateProfileCommand` & Handler - Update user full name
+- `ChangePasswordCommand` & Handler - Change password with current password verification
+- Validators: UpdateProfileCommandValidator, ChangePasswordCommandValidator
+- Event sourcing: Manual reconstruction from event stream using `FetchStreamAsync` + `Activator.CreateInstance`
+
+**Frontend Components:**
+- Modern profile page (`/profile`) with:
+  - Hero header: gradient background + animated avatar ring with pulse effect
+  - Responsive grid layout: left sidebar (quick info cards), right column (edit forms)
+  - Professional color palette: Teal (#0D9488), Deep Navy (#1E3A5F), Amber (#F59E0B)
+  - Micro-interactions: hover effects, scale transforms, smooth transitions
+  - Success/error notifications with slide-in animation
+  - Loading states with gradient spinner
+  - Memoized components for optimal performance
+
+**Technical Notes:**
+- User aggregate uses manual event reconstruction (not `AggregateStreamAsync`) due to Marten source generator limitations
+- Events appended without optimistic concurrency version to avoid duplicate key errors
+- Profile updates trigger `UserProfileUpdated` event
+- Password changes trigger `UserPasswordChanged` event (password hash stored separately in projection)
 
 ---
 
