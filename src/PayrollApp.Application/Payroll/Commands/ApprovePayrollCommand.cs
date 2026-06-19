@@ -63,15 +63,15 @@ public class ApprovePayrollCommandHandler : IRequestHandler<ApprovePayrollComman
         {
             await using var session = _documentStore.LightweightSession();
 
-            // Load PayrollRun aggregate
-            var payrollRun = await session.Events.AggregateStreamAsync<PayrollRun>(
-                request.PayrollRunId, 
-                token: cancellationToken);
+            // Load PayrollRun aggregate via manual event reconstruction
+            var events = await session.Events.FetchStreamAsync(request.PayrollRunId, token: cancellationToken);
 
-            if (payrollRun == null)
+            if (events == null || !events.Any())
             {
                 return Result.Failure($"PayrollRun {request.PayrollRunId} not found");
             }
+
+            var payrollRun = PayrollRun.FromEvents(events.Select(e => e.Data));
 
             // Approve payroll
             payrollRun.Approve(request.ApprovedBy, request.Notes);
