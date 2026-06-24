@@ -42,6 +42,25 @@ interface LineItem {
   takeHomePay: number;
 }
 
+function getAnomalyFlags(item: LineItem): string[] {
+  const flags: string[] = [];
+  const totalDeductions = item.bpjsKesehatan + item.bpjsKetenagakerjaan + item.pph21 + item.deductions;
+
+  if (item.takeHomePay <= 0) {
+    flags.push('THP minus/zero');
+  }
+
+  if (item.grossSalary > 0 && totalDeductions > item.grossSalary * 0.5) {
+    flags.push('Potongan > 50% gross');
+  }
+
+  if (item.grossSalary > 0 && item.pph21 > item.grossSalary * 0.25) {
+    flags.push('PPh21 tinggi');
+  }
+
+  return flags;
+}
+
 export default function PayrollDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -540,14 +559,29 @@ export default function PayrollDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredLineItems && filteredLineItems.length > 0 ? (
-                    filteredLineItems.map((item) => (
-                      <tr 
-                        key={item.employeeId} 
+                    filteredLineItems.map((item) => {
+                      const anomalyFlags = getAnomalyFlags(item);
+
+                      return (
+                      <tr
+                        key={item.employeeId}
                         className="hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-emerald-50/50 transition-colors duration-150"
                       >
                         <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-emerald-50/50">
                           <div className="text-sm font-semibold text-[#1E3A5F]">{item.employeeName}</div>
                           <div className="text-xs text-[#64748B] font-mono">{item.employeeCode}</div>
+                          {anomalyFlags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5 max-w-[220px]">
+                              {anomalyFlags.map((flag) => (
+                                <span
+                                  key={flag}
+                                  className="inline-flex items-center px-2 py-1 rounded-md bg-amber-100 text-amber-800 text-[10px] font-semibold"
+                                >
+                                  {flag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <MoneyDisplay amount={item.basicSalary} className="text-sm text-[#1E3A5F]" />
@@ -585,7 +619,8 @@ export default function PayrollDetailPage() {
                           </td>
                         )}
                       </tr>
-                    ))
+                    );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={isLocked ? 9 : 8} className="px-6 py-12 text-center text-[#64748B]">
