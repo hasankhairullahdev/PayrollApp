@@ -90,6 +90,7 @@ export default function PayrollDetailPage() {
     [hasRole, payrollRun?.status]
   );
   const isLocked = useMemo(() => payrollRun?.status === 'Locked', [payrollRun?.status]);
+  const isDisbursed = useMemo(() => payrollRun?.status === 'Disbursed', [payrollRun?.status]);
 
   // Memoize filtered line items with search
   const filteredLineItems = useMemo(() => {
@@ -327,8 +328,9 @@ export default function PayrollDetailPage() {
                 </button>
 
                 {canManageDisbursement && (
-                  <>
-                    <div className="relative group">
+                  <div className="flex flex-col items-start gap-3">
+                    <div className="flex flex-wrap gap-3">
+                      <div className="relative group">
                       <button className="px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-300 flex items-center gap-2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -354,26 +356,30 @@ export default function PayrollDetailPage() {
                           </button>
                         ))}
                       </div>
+                      </div>
+                      <button
+                        onClick={handleInitiateDisbursement}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h11M9 21V3m4 18h8m-4-4l4 4-4 4" />
+                        </svg>
+                        Initiate Disbursement
+                      </button>
+                      <button
+                        onClick={handleConfirmDisbursement}
+                        className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Confirm Disbursement
+                      </button>
                     </div>
-                    <button
-                      onClick={handleInitiateDisbursement}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h11M9 21V3m4 18h8m-4-4l4 4-4 4" />
-                      </svg>
-                      Initiate Disbursement
-                    </button>
-                    <button
-                      onClick={handleConfirmDisbursement}
-                      className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Confirm Disbursement
-                    </button>
-                  </>
+                    <p className="text-xs text-[#64748B] px-1">
+                      Urutan proses: download bank file, initiate disbursement, lakukan transfer, lalu confirm disbursement.
+                    </p>
+                  </div>
                 )}
               </>
             )}
@@ -663,7 +669,7 @@ export default function PayrollDetailPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Approval Information
+                Approval & Disbursement
               </h3>
               <div className="space-y-4">
                 {payrollRun.approvedBy && (
@@ -694,6 +700,18 @@ export default function PayrollDetailPage() {
                     </div>
                   </>
                 )}
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-sm text-[#64748B]">Disbursement Status</span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                    isDisbursed
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : isLocked
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {isDisbursed ? 'Confirmed' : isLocked ? 'Ready to Process' : 'Not Available'}
+                  </span>
+                </div>
                 {!payrollRun.approvedBy && !payrollRun.lockedBy && (
                   <div className="text-center py-8 text-[#64748B]">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
