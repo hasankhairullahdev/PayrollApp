@@ -10,6 +10,7 @@ import { PayrollActionDialog } from '@/components/PayrollActionDialog';
 import { PayrollTimeline } from '@/components/PayrollTimeline';
 import { PayrollSummaryCharts } from '@/components/PayrollSummaryCharts';
 import { api, payrollApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 
 interface PayrollRunDetail {
   id: string;
@@ -46,6 +47,7 @@ export default function PayrollDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const queryClient = useQueryClient();
+  const { user, hasRole } = useAuth();
   const [activeTab, setActiveTab] = useState<'line-items' | 'summary' | 'timeline'>('line-items');
   const [searchQuery, setSearchQuery] = useState('');
   const [actionDialog, setActionDialog] = useState<{
@@ -71,9 +73,22 @@ export default function PayrollDetailPage() {
   });
 
   // Memoize status checks (rerender-derived-state)
-  const canStartReview = useMemo(() => payrollRun?.status === 'Calculated', [payrollRun?.status]);
-  const canApproveOrReject = useMemo(() => payrollRun?.status === 'UnderReview', [payrollRun?.status]);
-  const canLock = useMemo(() => payrollRun?.status === 'Approved', [payrollRun?.status]);
+  const canStartReview = useMemo(
+    () => payrollRun?.status === 'Calculated' && hasRole(['Admin', 'HR', 'Finance']),
+    [hasRole, payrollRun?.status]
+  );
+  const canApproveOrReject = useMemo(
+    () => payrollRun?.status === 'UnderReview' && hasRole(['Admin', 'Finance']),
+    [hasRole, payrollRun?.status]
+  );
+  const canLock = useMemo(
+    () => payrollRun?.status === 'Approved' && hasRole(['Admin', 'HR']),
+    [hasRole, payrollRun?.status]
+  );
+  const canManageDisbursement = useMemo(
+    () => payrollRun?.status === 'Locked' && hasRole(['Admin', 'HR']),
+    [hasRole, payrollRun?.status]
+  );
   const isLocked = useMemo(() => payrollRun?.status === 'Locked', [payrollRun?.status]);
 
   // Memoize filtered line items with search
@@ -311,7 +326,7 @@ export default function PayrollDetailPage() {
                   Export Excel
                 </button>
 
-                {isLocked && (
+                {canManageDisbursement && (
                   <>
                     <div className="relative group">
                       <button className="px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-300 flex items-center gap-2">
@@ -704,6 +719,7 @@ export default function PayrollDetailPage() {
           onClose={() => setActionDialog({ isOpen: false, action: null })}
           payrollRunId={id}
           action={actionDialog.action}
+          currentUserName={user?.fullName ?? 'System'}
         />
       )}
     </div>

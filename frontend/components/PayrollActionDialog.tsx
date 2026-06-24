@@ -9,6 +9,7 @@ interface PayrollActionDialogProps {
   onClose: () => void;
   payrollRunId: string;
   action: 'start-review' | 'approve' | 'reject' | 'lock' | 'initiate-disbursement' | 'confirm-disbursement';
+  currentUserName: string;
   onSuccess?: () => void;
 }
 
@@ -17,6 +18,7 @@ export function PayrollActionDialog({
   onClose,
   payrollRunId,
   action,
+  currentUserName,
   onSuccess,
 }: PayrollActionDialogProps) {
   const [notes, setNotes] = useState('');
@@ -25,7 +27,7 @@ export function PayrollActionDialog({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const user = 'HR Admin'; // TODO: Get from auth context
+      const user = currentUserName;
       
       switch (action) {
         case 'start-review':
