@@ -50,7 +50,7 @@ export default function PayrollDetailPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionDialog, setActionDialog] = useState<{
     isOpen: boolean;
-    action: 'start-review' | 'approve' | 'reject' | 'lock' | null;
+    action: 'start-review' | 'approve' | 'reject' | 'lock' | 'initiate-disbursement' | 'confirm-disbursement' | null;
   }>({ isOpen: false, action: null });
 
   const { data: payrollRun, isLoading } = useQuery({
@@ -117,6 +117,14 @@ export default function PayrollDetailPage() {
 
   const handleLock = useCallback(() => {
     setActionDialog({ isOpen: true, action: 'lock' });
+  }, []);
+
+  const handleInitiateDisbursement = useCallback(() => {
+    setActionDialog({ isOpen: true, action: 'initiate-disbursement' });
+  }, []);
+
+  const handleConfirmDisbursement = useCallback(() => {
+    setActionDialog({ isOpen: true, action: 'confirm-disbursement' });
   }, []);
 
   // Download handlers (rerender-functional-setstate)
@@ -304,33 +312,53 @@ export default function PayrollDetailPage() {
                 </button>
 
                 {isLocked && (
-                  <div className="relative group">
-                    <button className="px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-300 flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                      </svg>
-                      Bank File
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    
-                    {/* Dropdown */}
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border-2 border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
-                      {['BCA', 'Mandiri', 'BNI', 'Permata'].map((bank) => (
-                        <button
-                          key={bank}
-                          onClick={() => handleGenerateBankFile(bank.toLowerCase())}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl transition-colors flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          <span className="font-medium text-gray-700">{bank}</span>
-                        </button>
-                      ))}
+                  <>
+                    <div className="relative group">
+                      <button className="px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-300 flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Bank File
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      {/* Dropdown */}
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border-2 border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
+                        {['BCA', 'Mandiri', 'BNI', 'Permata'].map((bank) => (
+                          <button
+                            key={bank}
+                            onClick={() => handleGenerateBankFile(bank.toLowerCase())}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span className="font-medium text-gray-700">{bank}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                    <button
+                      onClick={handleInitiateDisbursement}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h11M9 21V3m4 18h8m-4-4l4 4-4 4" />
+                      </svg>
+                      Initiate Disbursement
+                    </button>
+                    <button
+                      onClick={handleConfirmDisbursement}
+                      className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Confirm Disbursement
+                    </button>
+                  </>
                 )}
               </>
             )}

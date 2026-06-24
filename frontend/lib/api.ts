@@ -120,6 +120,14 @@ export interface RejectPayrollRequest {
   reason: string;
 }
 
+export interface InitiateDisbursementRequest {
+  bankName: string;
+}
+
+export interface ConfirmDisbursementRequest {
+  confirmedBy: string;
+}
+
 // API Functions
 export const payrollApi = {
   // Get list of payroll runs
@@ -164,6 +172,16 @@ export const payrollApi = {
   // Reject payroll run
   rejectPayrollRun: async (id: string, data: RejectPayrollRequest): Promise<void> => {
     await api.post(`/api/payroll/${id}/reject`, data);
+  },
+
+  // Initiate disbursement
+  initiateDisbursement: async (id: string, data: InitiateDisbursementRequest): Promise<void> => {
+    await api.post(`/api/payroll/${id}/initiate-disbursement`, data);
+  },
+
+  // Confirm disbursement
+  confirmDisbursement: async (id: string, data: ConfirmDisbursementRequest): Promise<void> => {
+    await api.post(`/api/payroll/${id}/confirm-disbursement`, data);
   },
 
   // Download payslip PDF for specific employee

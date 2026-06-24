@@ -83,11 +83,11 @@ public partial class PayrollRunSummaryProjection : SingleStreamProjection<Payrol
     }
     
     /// <summary>
-    /// Update status setelah disbursement initiated
+    /// Disbursement initiated does not change payroll status yet.
+    /// Status becomes Disbursed only after transfer confirmation.
     /// </summary>
     public void Apply(DisbursementInitiated @event, PayrollRunSummary summary)
     {
-        summary.Status = Domain.Enums.PayrollStatus.Disbursed;
     }
     
     /// <summary>

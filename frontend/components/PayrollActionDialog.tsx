@@ -8,7 +8,7 @@ interface PayrollActionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   payrollRunId: string;
-  action: 'start-review' | 'approve' | 'reject' | 'lock';
+  action: 'start-review' | 'approve' | 'reject' | 'lock' | 'initiate-disbursement' | 'confirm-disbursement';
   onSuccess?: () => void;
 }
 
@@ -40,6 +40,13 @@ export function PayrollActionDialog({
           break;
         case 'lock':
           await payrollApi.lockPayrollRun(payrollRunId, { lockedBy: user });
+          break;
+        case 'initiate-disbursement':
+          if (!notes.trim()) throw new Error('Bank name is required');
+          await payrollApi.initiateDisbursement(payrollRunId, { bankName: notes });
+          break;
+        case 'confirm-disbursement':
+          await payrollApi.confirmDisbursement(payrollRunId, { confirmedBy: user });
           break;
       }
     },
@@ -101,6 +108,25 @@ export function PayrollActionDialog({
           description: 'Setelah di-lock, payroll tidak dapat diubah lagi dan payslip akan digenerate otomatis.',
           confirmText: 'Lock & Generate Payslip',
           confirmColor: 'from-purple-500 to-purple-600',
+          showInput: false,
+        };
+      case 'initiate-disbursement':
+        return {
+          title: 'Initiate Disbursement',
+          description: 'Masukkan nama bank untuk memulai proses disbursement payroll ini.',
+          confirmText: 'Initiate Disbursement',
+          confirmColor: 'from-blue-500 to-blue-600',
+          showInput: true,
+          inputLabel: 'Nama Bank *',
+          inputPlaceholder: 'Contoh: BCA',
+          required: true,
+        };
+      case 'confirm-disbursement':
+        return {
+          title: 'Confirm Disbursement',
+          description: 'Konfirmasi bahwa transfer payroll sudah berhasil dilakukan.',
+          confirmText: 'Confirm Transfer',
+          confirmColor: 'from-emerald-500 to-teal-600',
           showInput: false,
         };
     }

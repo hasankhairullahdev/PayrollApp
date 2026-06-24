@@ -98,12 +98,36 @@ public static class PayrollEndpoints
             .Produces(401)
             .Produces(403);
 
+        // POST /api/payroll/{id}/initiate-disbursement - Initiate payroll disbursement
+        // HR and Admin can initiate disbursement
+        group.MapPost("/{id:guid}/initiate-disbursement", InitiateDisbursement)
+            .WithName("InitiateDisbursement")
+            .WithSummary("Initiate payroll disbursement")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
+            .Produces(200)
+            .Produces<ProblemDetails>(400)
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
+
         // POST /api/payroll/{id}/reject - Reject payroll run
         // Finance and Admin can reject
         group.MapPost("/{id:guid}/reject", RejectPayrollRun)
             .WithName("RejectPayrollRun")
             .WithSummary("Reject payroll run during review")
             .RequireAuthorization(AuthorizationPolicies.RequireFinanceOrAdmin)
+            .Produces(200)
+            .Produces<ProblemDetails>(400)
+            .Produces<ProblemDetails>(404)
+            .Produces(401)
+            .Produces(403);
+
+        // POST /api/payroll/{id}/confirm-disbursement - Confirm payroll disbursement
+        // HR and Admin can confirm transfer completion
+        group.MapPost("/{id:guid}/confirm-disbursement", ConfirmDisbursement)
+            .WithName("ConfirmDisbursement")
+            .WithSummary("Confirm payroll transfer completion")
+            .RequireAuthorization(AuthorizationPolicies.RequireHROrAdmin)
             .Produces(200)
             .Produces<ProblemDetails>(400)
             .Produces<ProblemDetails>(404)
@@ -259,6 +283,44 @@ public static class PayrollEndpoints
             : Results.BadRequest(CreateProblemDetails("Failed to reject payroll run", result.Error));
     }
 
+    private static async Task<IResult> InitiateDisbursement(
+        Guid id,
+        [FromBody] InitiateDisbursementRequest request,
+        [FromServices] IMediator mediator,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new InitiateDisbursementCommand
+        {
+            PayrollRunId = id,
+            BankName = request.BankName
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok()
+            : Results.BadRequest(CreateProblemDetails("Failed to initiate disbursement", result.Error));
+    }
+
+    private static async Task<IResult> ConfirmDisbursement(
+        Guid id,
+        [FromBody] ConfirmDisbursementRequest request,
+        [FromServices] IMediator mediator,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new ConfirmDisbursementCommand
+        {
+            PayrollRunId = id,
+            ConfirmedBy = request.ConfirmedBy
+        };
+
+        var result = await mediator.Send(command, cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Ok()
+            : Results.BadRequest(CreateProblemDetails("Failed to confirm disbursement", result.Error));
+    }
+
     private static ProblemDetails CreateProblemDetails(string title, string detail)
     {
         return new ProblemDetails
@@ -276,5 +338,7 @@ public record ApprovePayrollRequest(string ApprovedBy, string? Notes);
 public record LockPayrollRequest(string LockedBy);
 public record StartReviewRequest(string ReviewedBy);
 public record RejectPayrollRequest(string RejectedBy, string Reason);
+public record InitiateDisbursementRequest(string BankName);
+public record ConfirmDisbursementRequest(string ConfirmedBy);
 
 // Made with Bob
