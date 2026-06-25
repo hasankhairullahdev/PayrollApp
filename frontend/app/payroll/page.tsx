@@ -33,9 +33,9 @@ export default function PayrollPage() {
       const response = await api.get<{ items: PayrollRun[]; totalCount: number }>(`/api/payroll${params}`);
       return response.data;
     },
-    staleTime: 5 * 60 * 1000, // Data dianggap fresh selama 5 menit
-    refetchOnWindowFocus: false, // Tidak refetch saat window focus
-    refetchOnMount: false, // Tidak refetch saat component mount jika data masih fresh
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Memoize filtered and sorted data (rerender-memo)

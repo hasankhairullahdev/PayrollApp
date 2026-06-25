@@ -54,7 +54,7 @@ export function PayrollActionDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll-run', payrollRunId] });
-      queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-runs'], exact: false });
       onSuccess?.();
       handleClose();
     },
