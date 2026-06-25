@@ -263,6 +263,7 @@ export default function PayrollPage() {
               { value: 'UnderReview', label: 'Review', color: 'from-amber-500 to-amber-600' },
               { value: 'Approved', label: 'Approved', color: 'from-emerald-500 to-emerald-600' },
               { value: 'Locked', label: 'Locked', color: 'from-purple-500 to-purple-600' },
+              { value: 'Disbursed', label: 'Disbursed', color: 'from-cyan-500 to-cyan-600' },
             ].map((status) => {
               // Count dari allPayrollRuns (tanpa filter year/search), hanya filter status
               const count = status.value === 'all'
